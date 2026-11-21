@@ -1,0 +1,1711 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador NNARX – Usoro</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E %3Crect width='64' height='64' rx='14' fill='%23681434'/%3E %3Ccircle cx='18' cy='20' r='6' fill='%23fff'/%3E %3Ccircle cx='18' cy='44' r='6' fill='%23fff'/%3E %3Ccircle cx='46' cy='32' r='7' fill='%23ffb703'/%3E %3Cpath d='M24 20 40 30M24 44 40 34' stroke='%23fff' stroke-width='3'/%3E %3C/svg%3E">
+<meta name="theme-color" content="#681434">
+<meta name="description" content="Simulador en línea del control por linealización instantánea con un modelo NNARX (sin RLS) sobre el modelo de 47 estados de la planta termoeléctrica de 600 MW de Usoro (1977).">
+<style>
+:root {
+  --fondo: #f4f4f6; --panel: #ffffff; --tinta: #1d1d22; --tenue: #5f5f68; --linea: #dcdce2;
+  --guinda: #681434; --azul: #1f4e79; --acento: #2a78d6; --pi: #9a9893; --ctrl: #eb6834; --cons: #1d1d22;
+  --bien: #dbf2e3; --mal: #fbe0e0;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--fondo); color: var(--tinta);
+  font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 15px; }
+h1 { font-size: 1.3rem; margin: 0 0 .25rem; }
+h2 { font-size: .95rem; margin: 0 0 .6rem; color: var(--azul); }
+.cab { background: var(--guinda); color: #fff; padding: 14px 20px; display: flex; justify-content: space-between;
+  gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+.cab p { margin: 0; opacity: .92; max-width: 860px; font-size: .92rem; }
+.cab-inst { font-size: .82rem; opacity: .85; }
+.disp { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 14px; padding: 14px; max-width: 1500px; margin: 0 auto; }
+.lado { display: flex; flex-direction: column; gap: 14px; }
+.der { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.caja { background: var(--panel); border: 1px solid var(--linea); border-radius: 8px; padding: 12px 14px; }
+label { display: block; font-size: .85rem; color: var(--tenue); margin-bottom: 8px; }
+select, input[type=number] { display: block; width: 100%; margin-top: 3px; padding: 6px 8px; font-size: .92rem;
+  border: 1px solid var(--linea); border-radius: 5px; background: #fff; color: var(--tinta); }
+label.chk { display: flex; gap: 6px; align-items: center; color: var(--tinta); }
+label.chk input { margin: 0; }
+.botones { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 10px; }
+button { padding: 8px 10px; font-size: .92rem; border: 1px solid var(--linea); border-radius: 5px; background: #fff;
+  color: var(--tinta); cursor: pointer; }
+button:hover { border-color: #b9b9c3; }
+button.prim { background: var(--acento); border-color: var(--acento); color: #fff; font-weight: 600; }
+button:disabled { opacity: .5; cursor: default; }
+.barra { height: 7px; background: #e3e6ec; border-radius: 4px; overflow: hidden; }
+#avance { height: 100%; width: 0; background: var(--acento); }
+.fase { margin-top: 8px; text-align: center; font-weight: 600; color: #fff; border-radius: 4px; padding: 3px; font-size: .85rem; }
+.fase.listo { background: #8a8d99; } .fase.corriendo { background: #2e8b57; } .fase.pausa { background: #d98a22; }
+.fase.terminado { background: var(--azul); } .fase.divergio { background: #c4384f; }
+table.estado { width: 100%; border-collapse: collapse; font-size: .85rem; }
+table.estado td { padding: 3px 2px; border-bottom: 1px solid #eee; }
+table.estado td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.pestanas { display: flex; gap: 4px; flex-wrap: wrap; }
+.pest { border-radius: 6px 6px 0 0; border-bottom: none; background: #e9e9ee; }
+.pest.activa { background: var(--panel); color: var(--guinda); font-weight: 600; }
+.pagina { display: none; background: var(--panel); border: 1px solid var(--linea); border-radius: 0 8px 8px 8px; padding: 10px; }
+.pagina.activa { display: block; }
+.leyenda { text-align: center; font-size: .88rem; margin-bottom: 4px; }
+.leyenda span { display: inline-flex; align-items: center; gap: 6px; margin: 0 10px; }
+.leyenda i { display: inline-block; width: 22px; height: 0; border-top: 3px solid; }
+.leyenda i.disc { border-top: 2px dashed #000; }
+.rejilla { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.rejilla canvas { width: 100%; height: 230px; display: block; }
+table.lect { width: 100%; border-collapse: collapse; font-size: .88rem; margin-top: 4px; }
+table.lect th, table.lect td { padding: 5px 6px; border-bottom: 1px solid #eee; text-align: right; font-variant-numeric: tabular-nums; }
+table.lect th:first-child, table.lect td:first-child { text-align: left; }
+table.lect td.bien { background: var(--bien); } table.lect td.mal { background: var(--mal); }
+.nota { font-size: .82rem; color: var(--tenue); margin: 6px 2px 0; }
+.acerca { max-width: 900px; line-height: 1.5; font-size: .93rem; }
+.acerca h3 { color: var(--azul); font-size: 1rem; margin: 18px 0 6px; }
+.acerca table { border-collapse: collapse; font-size: .88rem; }
+.acerca td, .acerca th { border-bottom: 1px solid #eee; padding: 4px 8px; text-align: right; }
+.acerca td:first-child, .acerca th:first-child { text-align: left; }
+.acerca a, .pie a { color: var(--azul); }
+.pie { text-align: center; font-size: .8rem; color: var(--tenue); padding: 10px 14px 18px; }
+@media (max-width: 900px) {
+  .disp { grid-template-columns: 1fr; padding: 10px; }
+  .rejilla { grid-template-columns: 1fr; }
+  .rejilla canvas { height: 210px; }
+  .cab { padding: 12px 16px; }
+}
+</style>
+</head>
+<body>
+<header class="cab">
+  <div>
+    <h1>Control por linealización instantánea con un NNARX</h1>
+    <p>Planta termoeléctrica de 600 MW de Usoro (1977), modelo de 47 estados. Una red neuronal NNARX predice la caldera y,
+       cada 20 s, se linealiza para calcular los tres mandos con la ley de mínima varianza ponderada de Amin et al. (1984). Sin RLS.</p>
+  </div>
+  <div class="cab-inst">TecNM / CENIDET · Control Automático</div>
+</header>
+
+<main class="disp">
+  <aside class="lado">
+    <section class="caja">
+      <h2>Qué simular</h2>
+      <label>Prueba
+        <select id="prueba">
+          <optgroup label="Amin et al. (1984), 10 %/min, 800 s">
+            <option value="a1">90 → 70 %</option>
+            <option value="a2">70 → 90 %</option>
+          </optgroup>
+          <optgroup label="Usoro (1977), 15 %/min, 700 s">
+            <option value="u1">V.1  100 → 77,5 %</option>
+            <option value="u2">V.2  77,5 → 100 %</option>
+            <option value="u3">V.3  77,5 → 50 %</option>
+            <option value="u4">V.4  50 → 77,5 %</option>
+          </optgroup>
+        </select>
+      </label>
+      <label>Modelo
+        <select id="modelo">
+          <option value="nn34">NNARX 3×4 (con demanda)</option>
+          <option value="nn33">NNARX 3×3 (sin demanda)</option>
+        </select>
+      </label>
+      <label>Controlador
+        <select id="ctrl">
+          <option value="LI">LI: ley de Amin, u_ref = u_ss(carga)</option>
+          <option value="LI-I">LI-I: con acción integral</option>
+          <option value="pi">PI original de Usoro</option>
+        </select>
+      </label>
+      <label>λ (peso del mando)
+        <input type="number" id="lambda" value="0.5" min="0" step="0.1">
+      </label>
+      <label class="chk"><input type="checkbox" id="fondoPI" checked> PI de Usoro de fondo</label>
+    </section>
+
+    <section class="caja">
+      <h2>Marcha</h2>
+      <label>Velocidad
+        <select id="vel">
+          <option value="max">máxima</option>
+          <option value="200">× 200</option>
+          <option value="50">× 50</option>
+          <option value="10">× 10</option>
+        </select>
+      </label>
+      <div class="botones">
+        <button class="prim" id="bInicia">Iniciar</button>
+        <button id="bReinicia">Reiniciar</button>
+      </div>
+      <div class="barra"><div id="avance"></div></div>
+      <div class="fase listo" id="fase">Listo</div>
+      <div class="botones" style="margin-top:10px">
+        <button id="bCSV" disabled>Exportar CSV</button>
+        <button id="bPNG" disabled>Exportar PNG</button>
+      </div>
+    </section>
+
+    <section class="caja">
+      <h2>Estado</h2>
+      <table class="estado">
+        <tr><td>Tiempo</td><td id="eT">0 s</td></tr>
+        <tr><td>Carga (demanda)</td><td id="eL">—</td></tr>
+        <tr><td>Mandos saturados</td><td id="eSat">—</td></tr>
+        <tr><td>cond(B0) actual</td><td id="eCond">—</td></tr>
+        <tr><td>J (IAE/PI, media)</td><td id="eJ">—</td></tr>
+      </table>
+    </section>
+  </aside>
+
+  <section class="der">
+    <div class="pestanas">
+      <button class="pest activa" data-p="pRes">Resumen</button>
+      <button class="pest" data-p="pAcerca">Acerca de</button>
+    </div>
+    <div class="pagina activa" id="pRes">
+      <div class="leyenda">
+        <span><i style="border-color:var(--ctrl)"></i><b id="legCtrl">Controlador</b></span>
+        <span id="legPI"><i style="border-color:var(--pi)"></i>PI de Usoro</span>
+        <span><i class="disc"></i>Consigna</span>
+      </div>
+      <div class="rejilla">
+        <canvas id="g0"></canvas><canvas id="g1"></canvas><canvas id="g2"></canvas>
+        <canvas id="g3"></canvas><canvas id="g4"></canvas><canvas id="g5"></canvas>
+      </div>
+      <table class="lect">
+        <thead><tr><th>Salida</th><th>e máx</th><th>IAE</th><th>ITAE</th><th>IAE / PI</th><th>ITAE / PI</th></tr></thead>
+        <tbody id="lect"></tbody>
+      </table>
+      <p class="nota">IAE e ITAE sobre la rejilla de control (20 s). Cocientes contra el PI de Usoro en la misma prueba: verde, mejor que el PI; rojo, peor.</p>
+    </div>
+
+    <div class="pagina" id="pAcerca"><div class="acerca">
+      <h3>Qué es</h3>
+      <p>Una prueba del control por <b>linealización instantánea</b> (Nørgaard et al., 2000, sec. 3.7) sobre el modelo de 47 estados de la
+        unidad de 600 MW de Usoro (1977). El modelo de la caldera es una red neuronal <b>NNARX</b> de una sola red para las tres salidas
+        (TSSO, TRHO, PSSO), entrenada fuera de línea con datos de 50 a 100 % de carga. El controlador <b>no tiene RLS</b>: la red queda fija.</p>
+      <h3>El controlador</h3>
+      <p>Cada 20 s se arma el regresor de la predicción de y(t+1), se deriva la red respecto al mando u(t) en u(t−1) —se obtienen
+        B0 = ∂ŷ(t+1)/∂u(t) y c = ŷ − B0·u(t−1)— y se aplica la ley de Amin et al. (1984), que minimiza
+        ‖ŷ(t+1) − w‖² + λ‖u − u<sub>ref</sub>‖². Los mandos se recortan a 1–5 V.</p>
+      <ul>
+        <li><b>LI:</b> u<sub>ref</sub> es el mando de estado estable de la demanda actual.</li>
+        <li><b>LI-I:</b> u<sub>ref</sub> = u(t−1) y a la predicción se suma el error a un paso del instante actual (acción integral).</li>
+      </ul>
+      <h3>Los modelos</h3>
+      <ul>
+        <li><b>NNARX 3×4:</b> 8 neuronas tanh y parte lineal; regresor con 5 salidas pasadas, 8 mandos pasados y la demanda de carga
+          L(t+1), L(t), L(t−1), L(t−2). Supone conocida la demanda del siguiente periodo (la programa el Load Demand Computer).</li>
+        <li><b>NNARX 3×3:</b> 8 neuronas; 4 salidas y 6 mandos pasados; no ve la demanda.</li>
+      </ul>
+      <p>Ninguno de los dos aceptó por completo la hipótesis de validación de la metodología: el 3×4 falló solo la prueba de blancura de
+        los residuos (un sesgo pequeño que depende del nivel de carga); el 3×3, además, el error y la ganancia.</p>
+      <h3>Resultados de referencia (J = media de IAE/PI)</h3>
+      <table>
+        <tr><th>Controlador</th><th>Rampas de Amin</th><th>Rampas de Usoro</th></tr>
+        <tr><td>STC de Amin (réplica)</td><td>3,96</td><td>—</td></tr>
+        <tr><td>STC modificado (réplica)</td><td>1,43</td><td>—</td></tr>
+        <tr><td>LI, NNARX 3×3</td><td>7,07</td><td>—</td></tr>
+        <tr><td>LI, NNARX 3×4</td><td>0,75</td><td>0,92</td></tr>
+        <tr><td>LI-I, NNARX 3×4</td><td>0,86</td><td>2,03</td></tr>
+      </table>
+      <h3>Verificación</h3>
+      <p>Las 24 corridas (6 pruebas × PI, LI y LI-I con el 3×4, más las de Amin con el 3×3) coinciden con las de MATLAB/Octave:
+        diferencia relativa de los IAE menor a 10<sup>−7</sup>. La planta es la del
+        <a href="https://marioabdel01-arch.github.io/simulador-amin-usoro/">simulador de la reproducción de Amin et al. (1984)</a>,
+        con la configuración de su artículo (solo la inclinación de quemadores para el recalentado) y arranque en el estado estable de cada nivel de carga.</p>
+      <h3>Créditos</h3>
+      <p>Mario Abdel Guerra Pérez y Enrique Quintero-Mármol Márquez, TecNM/CENIDET. Planta: Usoro (1977). Controlador base: Amin, Masada y Womack (1984).
+        Método: Nørgaard, Ravn, Poulsen y Hansen (2000). La versión web es una traducción a JavaScript del código de MATLAB. Licencia MIT.</p>
+    </div></div>
+  </section>
+</main>
+<div class="pie">Simulador web del control por linealización instantánea con NNARX · TecNM/CENIDET · Licencia MIT</div>
+<script>
+
+// funciones.js — Funciones de propiedades del vapor, flujos y transferencia de calor
+// del modelo de 47 estados de Usoro (1977).  Traduccion automatica a JavaScript
+// del codigo MATLAB de Quintero-Marmol (2026), carpeta planta/funciones.
+// Verificada contra MATLAB/Octave: mismas derivadas a precision de maquina.
+
+function arflow(knfd, knid, nfd, nid, wgr, wfl, avf, avi, kfcal_) {
+  let efd, eid, k1fd, k1id, k2fd, k2id, k3fd, k3id, k4fd, k4id, k5fd, k5id, k6fd, k6id, kfah, kfapa, kfapg, kfcal, kfg, kfst, knfd2, knid2, kpat, nfd2, nid2, pahao, papgo, pecgo, pfdo, pfn, pido, pstd, war, wfd, wfd2, wfl2, wgo, wgo2, wid, wid2, wwwg, wwwg2, z1, z10, z11, z12, z13, z14, z15, z16, z17, z18, z2, z4, z5, z6, z7, z9;
+  kpat = 14.7;
+  kfcal = 1.10;
+  if (kfcal_ !== undefined && kfcal_ !== null) {
+    kfcal = kfcal_;
+  }
+  k1fd = -7.41568e-7*kfcal;
+  k2fd = 8.67456e-6*kfcal;
+  k3fd = 1.67206e-4*kfcal;
+  k4fd = -2.18247e-6;
+  k5fd = 5.13044e-5;
+  k6fd = -6.96849e-5;
+  k1id = -1.38148e-6*kfcal;
+  k2id = 1.12227e-5*kfcal;
+  k3id = 1.09727e-4*kfcal;
+  k4id = -1.12212e-6;
+  k5id = 1.74023e-5;
+  k6id = 3.43528e-5;
+  kfah = 1.82764e-7;
+  kfapa = 3.968e-7;
+  kfg = 263.7944e-9;
+  kfapg = 1.176409e-7;
+  kfst = 2.109e-7;
+  pstd = 7.216667e-2;
+  nfd2 = nfd*nfd;
+  nid2 = nid*nid;
+  knfd2 = knfd*knfd;
+  knid2 = knid*knid;
+  wfl2 = wfl*wfl;
+  z1 = wfl+wgr;
+  z2 = k1fd/avf;
+  z4 = knfd2*kfapa;
+  z5 = kfah+z4-z2;
+  z6 = kfapg+kfst;
+  z7 = k1id/avi;
+  z9 = -z7;
+  z10 = k2fd*nfd;
+  z11 = k2id*nid;
+  z12 = k3fd*nfd2*avf;
+  z13 = k3id*nid2*avi;
+  z14 = z12+z13+pstd;
+  z15 = z9/knid2;
+  z16 = z5+knfd2*(kfg+z6+z15);
+  z17 = 2*knfd*(kfg*z1+z6*wfl+z15*wfl)-z10-z11*knfd/knid;
+  z18 = kfg*z1*z1+wfl2*(z6+z15)-z11*wfl/knid-z14;
+  wfd = 0.5*(Math.sqrt(z17*z17-4*z16*z18)-z17)/z16;
+  war = knfd*wfd;
+  wwwg = war+z1;
+  wgo = war+wfl;
+  wid = wgo/knid;
+  wfd2 = wfd*wfd;
+  wwwg2 = wwwg*wwwg;
+  wgo2 = wgo*wgo;
+  wid2 = wid*wid;
+  pahao = kpat-kfah*wfd2;
+  pfdo = pahao+z2*wfd2+z10*wfd+z12;
+  pfn = pfdo-z4*wfd2;
+  pecgo = pfn-kfg*wwwg2;
+  papgo = pecgo-kfapg*wgo2;
+  pido = papgo+z7*wid2+z11*wid+z13;
+  efd = k4fd*wfd2+k5fd*wfd*nfd+k6fd*nfd2;
+  eid = k4id*wid2+k5id*wid*nid+k6id*nid2;
+  return [war, wwwg, wfd, wgo, wid, pahao, pfdo, pfn, pecgo, papgo, pido, efd, eid];
+}
+
+function averag(x11, x12, x21, x22, x31, x32) {
+  let x1m, x2m, x3m;
+  x1m = 0.5*(x11+x12);
+  x2m = 0.5*(x21+x22);
+  x3m = 0.5*(x31+x32);
+  return [x1m, x2m, x3m];
+}
+
+function check(zc, zmax, zmin) {
+  if ((zc<zmin)) {
+    zc = zmin;
+  }
+  if ((zc>zmax)) {
+    zc = zmax;
+  }
+  return zc;
+}
+
+function cnstat(p, qy) {
+  let T, hlpo, hs, hw, p2, p3, p4, p5, rlpo, rs, rw, slpo, ss, sw;
+  p2 = p*p;
+  p3 = p2*p;
+  p4 = p3*p;
+  p5 = p4*p;
+  rw = 62.34525-0.28884*p;
+  rs = 2.0e-5+3.21e-3*p-3.2e-4*p2+8.0e-5*p3;
+  hw = -25.80341+365.63647*p-878.10799*p2+1305.19564*p3-     1002.14134*p4+305.01148*p5;
+  hs = 1075.86634+28.99664*p;
+  T = 6.2916+364.60878*p-877.92172*p2+1311.45665*p3-     1012.17821*p4+309.49426*p5+459.67;
+  sw = -0.05216+0.74502*p-1.84119*p2+2.75801*p3-2.12467*p4+     0.64777*p5;
+  ss = 2.21936-0.58673*p+0.51817*p2-0.16668*p3;
+  hlpo = hw+qy*(hs-hw);
+  rlpo = rw+qy*(rs-rw);
+  slpo = sw+qy*(ss-sw);
+  return [hlpo, rlpo, slpo, T, rw, hw];
+}
+
+function cpstat(r, p) {
+  let T, h, p2, pr, r2;
+  p2 = p*p;
+  r2 = r*r;
+  pr = p*r;
+  h = 2668.5+24.790*r-1.7378*p+0.027264*pr-1.0745*r2+1.0266e-4*p2;
+  T = -7918.5+366.86*r-1.7341*p+0.027146*pr-3.8292*r2+     1.0439e-4*p2+459.67;
+  return [h, T];
+}
+
+function crstat(s, r, ef, h1) {
+  let T, hi, ho, p;
+  hi = -1211.8+683.58*r+1384.39*s;
+  ho = h1-ef*(h1-hi);
+  p = -381.05+0.2783*ho+668.609*r;
+  T = -2074.92+2.004*ho+71.326*r+459.7;
+  return [ho, p, T];
+}
+
+function cwflow(pcn, rcno, rdvo, pdes, ncp, adv, kncp) {
+  let adv2, ecp, k1cp, k1lhx, k2cp, k2lhx, k3cp, k3lhx, k4cp, k5cp, k6cp, kdv, kflh, kncp2, ncp2, pcpo, plho, wcp, wcp2, wcw, wcw2, wdvo, wlhx, z1, z2, z3, z4, z5, z6, z7;
+  kflh = 3.914168e-3;
+  kdv = 9.434e-3;
+  k1cp = -1.64515e-2;
+  k2cp = 1.20115e-4;
+  k3cp = 1.57933e-4;
+  k4cp = -8.88465e-3;
+  k5cp = 9.2870e-4;
+  k6cp = 4.34174e-7;
+  k1lhx = 25.60544;
+  k2lhx = 7.32295e-2;
+  k3lhx = -1.6317e-5;
+  adv2 = adv*adv;
+  ncp2 = ncp*ncp;
+  kncp2 = kncp*kncp;
+  z1 = k1cp/rcno;
+  z2 = k2cp*ncp;
+  z3 = k3cp*ncp2*rcno;
+  z4 = kflh*kncp2/rcno;
+  z5 = kdv*kncp2/(adv2*rdvo);
+  z6 = z4+z5-z1;
+  z7 = z3+pcn-pdes;
+  wcp = 0.5*(Math.sqrt(z2*z2+4*z6*z7)+z2)/z6;
+  wcw = kncp*wcp;
+  wcp2 = wcp*wcp;
+  wcw2 = wcw*wcw;
+  wlhx = k1lhx+k2lhx*wcw+k3lhx*wcw2;
+  wdvo = wcw-wlhx;
+  pcpo = pcn+z1*wcp2+z2*wcp+z3;
+  plho = pcpo-z4*wcp2;
+  ecp = k4cp*wcp2/(rcno*rcno)+k5cp*wcp*ncp/rcno+k6cp*ncp2;
+  return [wcw, wcp, pcpo, plho, wlhx, wdvo, ecp];
+}
+
+function cwstat(h, p) {
+  let T, h2, hp, p2, r;
+  p2 = p*p;
+  h2 = h*h;
+  hp = h*p;
+  r = 62.633+2.3086e-4*p-7.847e-3*h+8.4526e-7*hp-     1.3075e-7*p2-4.4171e-5*h2;
+  T = 31.363-3.6799e-3*p+1.0224*h+2.2581e-6*hp+1.3108e-6*p2-     9.8358e-5*h2+459.67;
+  return [r, T];
+}
+
+function destat(rs) {
+  let hs, hw, ps, rs2, rs3, rw, ts;
+  rs2 = rs*rs;
+  rs3 = rs2*rs;
+  rw = 60.45805-19.61207*rs;
+  hw = 118.26296+1905.63721*rs-8414.69018*rs2+15688.03769*rs3;
+  hs = 1143.4984+224.556*rs;
+  ps = -1.04181+419.17159*rs+131.32803*rs2;
+  ts = 150.48933+1896.4155*rs-8447.87828*rs2+15757.43239*rs3+459.67;
+  return [rw, hw, hs, ps, ts];
+}
+
+function destmr(wdrs, whp) {
+  let hderp, hdewh, wdebd, wderp, wdewh, wdrs2, wdrs3, whp2;
+  whp2 = whp*whp;
+  wdrs2 = wdrs*wdrs;
+  wdrs3 = wdrs2*wdrs;
+  wderp = 15.0975;
+  wdewh = 8.45534+2.8201e-3*whp-8.58e-7*whp2;
+  wdebd = 0.16331+7.319e-4*wdrs+4.462e-6*wdrs2-2.51e-9*wdrs3;
+  hderp = 295.60;
+  hdewh = 179.01095+9.66338e-2*whp-3.55714e-5*whp2;
+  return [wderp, wdewh, wdebd, hderp, hdewh];
+}
+
+function drstat(rs) {
+  let Ts, hs, hw, ps, rs2, rs3, rw;
+  rs2 = rs*rs;
+  rs3 = rs2*rs;
+  rw = 49.27105-2.13733*rs+0.03348*rs2;
+  hw = 526.5957+31.0437*rs-0.62086*rs2;
+  hs = 1241.713-21.3442*rs+0.20998*rs2;
+  ps = 11.1877+500.267*rs-26.4031*rs2+0.46944*rs3;
+  Ts = 458.084+48.2088*rs-3.2326*rs2+0.07249*rs3+459.67;
+  return [rw, hw, hs, ps, Ts];
+}
+
+function drum(kvdr, vdrw, rdrs, rdrw, hdrw, hdrs, k2, k3, k5, k6, k7, k9, k10, z206, z209) {
+  let f1dr, f2dr, vdrs, z200, z201, z202, z203, z204, z205, z207, z208, z210;
+  vdrs = kvdr-vdrw;
+  z200 = 2*rdrs;
+  z201 = k2+k3*z200;
+  z202 = k5+k6*z200+3*k7*rdrs*rdrs;
+  z203 = k9+k10*z200;
+  z204 = rdrw-rdrs;
+  z205 = vdrs+vdrw*z201;
+  z207 = rdrw*hdrw-rdrs*hdrs;
+  z208 = vdrs*hdrs+vdrw*hdrw*z201+vdrw*rdrw*z202+vdrs*rdrs*z203;
+  z210 = z204*z208-z205*z207;
+  f1dr = (z206*z208-z205*z209)/z210;
+  f2dr = (z204*z209-z206*z207)/z210;
+  return [f1dr, f2dr];
+}
+
+function fnxfer(twwm, wwwg, war, sar, tapao, wfl, sfl, tfl, khfl, efl, wgr, sgr, tgr, uwwgm, ywgr, tpse, upsr) {
+  let k1sfn, k2sfn, knp33, kt0, qpsr, qwwgm, sfn, swwgo, tfn1, tpse2, tpse4, twwge, twwge2, twwge4, twwgo, twwm2, twwm4, z1, z10, z11, z12, z2, z3, z4, z5, z6, z7, z8, z9;
+  knp33 = 0.333333;
+  kt0 = 537.0;
+  k1sfn = 0.31;
+  k2sfn = 0.145;
+  twwm2 = twwm*twwm;
+  twwm4 = twwm2*twwm2;
+  tpse2 = tpse*tpse;
+  tpse4 = tpse2*tpse2;
+  sfn = k1sfn+k2sfn*ywgr;
+  tfn1 = kt0+(wfl*khfl*efl+wfl*sfl*(tfl-kt0)+war*sar*     (tapao-kt0)+wgr*sgr*(tgr-kt0))/(wwwg*sfn);
+  z1 = uwwgm+upsr;
+  z2 = 2*wwwg*sfn;
+  z3 = uwwgm*twwm4+upsr*tpse4+z2*tfn1;
+  z4 = z2/z1;
+  z5 = z3/z1;
+  z6 = 0.5*z4*z4;
+  z7 = 4*z5/3;
+  z8 = Math.sqrt(z7*z7*z7+z6*z6);
+  z9 = (z6+z8)**knp33;
+  z10 = (z8-z6)**knp33;
+  z11 = z9-z10;
+  z12 = Math.sqrt(z11*z11+4*z5);
+  twwge = 0.5*(Math.sqrt(2*z12-z11)-Math.sqrt(z11));
+  twwgo = 2*twwge-tfn1;
+  twwge2 = twwge*twwge;
+  twwge4 = twwge2*twwge2;
+  qwwgm = uwwgm*(twwge4-twwm4);
+  qpsr = upsr*(twwge4-tpse4);
+  swwgo = sfn;
+  return [tfn1, twwge, twwgo, qwwgm, qpsr, swwgo];
+}
+
+function fpstat(r, p) {
+  let T, h, p2, pr, r2;
+  r2 = r*r;
+  p2 = p*p;
+  pr = p*r;
+  h = 9024.90+0.11479*p-90.346*r-2.0528e5/r-1.8098e-3*pr;
+  T = -1268.8+82.714*r+0.10301*p-1.4744e-3*pr-0.97073*r2-     1.801e-6*p2+459.67;
+  return [h, T];
+}
+
+function fpturb(wft, hft1, nfp) {
+  let eft, hfto, kj, mwfp1, tqfp1;
+  kj = 778.17;
+  hfto = 1059.0;
+  eft = 1.0;
+  mwfp1 = wft*(hft1-hfto)*eft*kj;
+  tqfp1 = mwfp1/nfp;
+  return [tqfp1, mwfp1];
+}
+
+function fwflow(wry, wsy, rdew, pdes, pdrs, reco, afv, nfp) {
+  let afv2, efp, k1bp, k1fp, k2bp, k2fp, k3bp, k3fp, k4fp, k5fp, k6fp, kfec, kfhh, kfv, knbpr, knbpr2, kwfpx, nbp, nbp2, nfp2, pbpo, pfpo, pfvd, pfvo, phho, wfp, wfp2, wfw, wfw2, z1, z10, z11, z12, z13, z14, z15, z16, z17, z2, z3, z4, z5, z6, z7, z8, z9;
+  k1fp = -57.3012e-3;
+  k2fp = 959.4371e-6;
+  k3fp = 203.8473e-6;
+  k4fp = -1.735761e-3;
+  k5fp = 129.1779e-6;
+  k6fp = 548.9264e-9;
+  k1bp = -2.63447e-3;
+  k2bp = 200.721e-6;
+  k3bp = 99.9049e-6;
+  kfhh = 4.7469e-3;
+  kfec = 3.878121e-3;
+  kfv = 1.1721e-3;
+  kwfpx = 19.6677;
+  knbpr = 0.333333;
+  knbpr2 = knbpr*knbpr;
+  nbp = knbpr*nfp;
+  nbp2 = nbp*nbp;
+  nfp2 = nfp*nfp;
+  afv2 = afv*afv;
+  z1 = kwfpx+wry+wsy;
+  z2 = kfv/(afv2*rdew);
+  z3 = kfhh/rdew;
+  z4 = kfec/reco;
+  z5 = k1fp/rdew;
+  z6 = k1bp/rdew;
+  z7 = k2fp*nfp;
+  z8 = k2bp*nbp;
+  z9 = k3fp*nfp2*rdew;
+  z10 = k3bp*nbp2*rdew;
+  z11 = z2+z3+z4;
+  z12 = z5+z6;
+  z13 = z7+z8;
+  z14 = z9+z10+pdes-pdrs;
+  z15 = z11-z12;
+  z16 = 2*z11*z1+z13;
+  z17 = z14-z11*z1*z1;
+  wfp = 0.5*(Math.sqrt(z16*z16+4*z15*z17)+z16)/z15;
+  wfw = wfp-z1;
+  wfp2 = wfp*wfp;
+  wfw2 = wfw*wfw;
+  pbpo = pdes+z6*wfp2+z8*wfp+z10;
+  pfpo = pbpo+z5*wfp2+z7*wfp+z9;
+  pfvo = pfpo-z2*wfw2;
+  phho = pfvo-z3*wfw2;
+  pfvd = pfpo-pfvo;
+  efp = k4fp*wfp2/(rdew*rdew)+k5fp*wfp*nfp/rdew+k6fp*nfp2;
+  return [wfp, wfw, wfw2, pbpo, pfpo, pfvo, phho, pfvd, efp];
+}
+
+function fwstat(h, p) {
+  let T, h2, h2p2, hp, p2, r;
+  p2 = p*p;
+  h2 = h*h;
+  hp = h*p;
+  h2p2 = h2*p2;
+  r = 71.143-5.0804e-3*p-3.2658e-2*h+1.1688e-5*hp+6.1657e-7*p2     -3.0631e-5*h2-2.3095e-12*h2p2;
+  T = 146.98-0.088486*p+0.79716*h+1.8034e-4*hp+1.0481e-5*p2     -1.8231e-4*h2-3.812e-11*h2p2+459.67;
+  return [r, T];
+}
+
+function hpext(w) {
+  let w2, w3, waux, wh;
+  w2 = w*w;
+  w3 = w2*w;
+  waux = 17.15813+1.08e-2*w;
+  wh = -7.17593+0.09513*w-8.6643e-5*w2+6.187e-8*w3;
+  return [waux, wh];
+}
+
+function hpstat(s, p, ef, h1) {
+  let T, hi, ho;
+  hi = -485.23+1065.28*s+0.232*p;
+  ho = h1-ef*(h1-hi);
+  T = -1639.24+0.119*p+1.682*ho;
+  return [ho, T];
+}
+
+function hxfer(wg, ws, kugm, kums, tse, tg1, qr, ywgr) {
+  let k0sg, k1sg, ksgt, ksgw, q, qc, sg, sgo, tgo, tme, ugm, ugs, ums, z1, z2, z3, z4, z5, z6, z7;
+  k0sg = 0.2484;
+  k1sg = 0.1428;
+  ksgt = 10.2272e-6;
+  ksgw = 35.0e-6;
+  ws = Math.abs(ws);
+  ugm = kugm*wg**0.6;
+  ums = kums*ws**0.8;
+  ugs = ugm*ums/(ugm+ums);
+  z1 = k0sg+k1sg*ywgr;
+  z2 = ksgt+ksgw*ywgr;
+  z3 = 0.5*ugs;
+  z4 = wg*z1;
+  z5 = wg*z2;
+  z6 = z3+z4;
+  z7 = z3*tg1-ugs*tse-z5*tg1*tg1-z4*tg1;
+  tgo = 0.5*(Math.sqrt(z6*z6-4*z5*z7)-z6)/z5;
+  sg = z1+z2*(tg1+tgo);
+  qc = wg*sg*(tg1-tgo);
+  q = qc+qr;
+  tme = tse+qc/ums;
+  sgo = z1+z2*2*tgo;
+  return [tgo, q, tme, sgo];
+}
+
+function ipext(w, p1, po, h1, ho) {
+  let h2x, ht, p2x, p3x, po2, po3, pt, w2, w2x, w3, w3x;
+  po2 = po*po;
+  po3 = po2*po;
+  ht = h1+ho;
+  pt = p1+po;
+  w2 = w*w;
+  w3 = w2*w;
+  w2x = 1.72456+2.72665e-2*w+2.7797e-5*w2;
+  w3x = -22.88702+0.17584*w-1.9372e-4*w2+1.0479e-7*w3;
+  p2x = 0.449904*pt;
+  p3x = 32.43505-0.4506405*po+6.851933e-3*po2-1.646941e-5*po3;
+  h2x = 0.503488*ht;
+  return [w2x, w3x, h2x, p2x, p3x];
+}
+
+function limchk(zc) {
+  if ((zc<1)) {
+    zc = 1;
+  }
+  if ((zc>5)) {
+    zc = 5;
+  }
+  return zc;
+}
+
+function lpext(wlp, pcro, pcn, hcro, hlpo) {
+  let h1lhs1, h2lhs1, hdex, hlpt, p1lhs, p2lhs, p3lhs, plpt, w1lhs, w2lhs, wdex, wlhst, wlp2, wlp3;
+  wlp2 = wlp*wlp;
+  wlp3 = wlp2*wlp;
+  plpt = pcro+pcn;
+  hlpt = hcro+hlpo;
+  w1lhs = -1.04759+9.97993e-2*wlp-6.8253e-5*wlp2+6.14e-8*wlp3;
+  w2lhs = -6.73762+8.48847e-2*wlp-1.3439e-5*wlp2;
+  wdex = 4.9696+1.75669e-2*wlp+3.0622e-5*wlp2;
+  wlhst = w1lhs+w2lhs;
+  p1lhs = 0.13571*plpt;
+  p2lhs = 0.029372*plpt;
+  p3lhs = 0.63009-7.0492e-2*p1lhs+6.3411e-3*p1lhs*p1lhs     -1.298e-4*p1lhs*p1lhs*p1lhs;
+  h1lhs1 = 0.498953*hlpt;
+  h2lhs1 = 0.458364*hlpt;
+  hdex = 0.533921*hlpt;
+  return [w1lhs, w2lhs, wdex, wlhst, p1lhs, p2lhs, p3lhs, h1lhs1, h2lhs1, hdex];
+}
+
+function lsstat(p) {
+  let T, h, p2, p3, r;
+  p2 = p*p;
+  p3 = p2*p;
+  h = 126.8737+4.15377*p-0.04224*p2+1.8e-4*p3;
+  r = 60.53211-0.04603*p;
+  T = 159.09642+4.1294*p-0.04236*p2+1.8e-4*p3+459.67;
+  return [h, r, T];
+}
+
+function lwstat(p) {
+  let T, h, p2, p3, r;
+  p2 = p*p;
+  p3 = p2*p;
+  h = 32.5+43.49757*p-7.38007*p2+0.51472*p3;
+  r = 62.34525-0.28884*p;
+  T = 64.05911+43.60199*p-7.40196*p2+0.51616*p3+459.67;
+  return [h, r, T];
+}
+
+function rhstat(r, h) {
+  let T, p, rh, s;
+  rh = r*h;
+  p = 27.061-1019.1*r-1.7354e-2*h+1.2279*rh;
+  T = -2013.4+189.65*r+1.9629*h-9.3054e-2*rh+459.67;
+  s = 1.5015+3.8306e-3*r+6.4181e-4*h-0.10938*Math.log(rh);
+  return [p, T, s];
+}
+
+function rwflow(knrp, rdc, rdrw, nrp, pdrs) {
+  let erp, k1rp, k2rp, k3rp, k4rp, k5rp, k6rp, kfdc, kfww, kldc, kn144, knrp2, kwrps, nrp2, pdco, prpo, wrp, wrp2, wrw, wwwo, z1, z10, z2, z3, z4, z5, z6, z7, z8, z9;
+  kn144 = 144.0;
+  kldc = 137.0;
+  kwrps = 4.3014;
+  k1rp = -1.73366e-3;
+  k2rp = 1.64728e-4;
+  k3rp = 5.5798e-5;
+  k4rp = -1.3391e-3;
+  k5rp = 3.45853e-4;
+  k6rp = 2.8937e-6;
+  kfdc = 381.048e-6;
+  kfww = 84.6537e-6;
+  nrp2 = nrp*nrp;
+  knrp2 = knrp*knrp;
+  z1 = kfdc/rdc;
+  z2 = kldc*rdc/kn144;
+  z3 = k1rp/rdc;
+  z4 = k2rp*nrp;
+  z5 = k3rp*nrp2*rdc;
+  z6 = kfww/rdrw;
+  z7 = kldc*rdrw/kn144;
+  z8 = z1-z3+z6*knrp2;
+  z9 = z4-2*z6*knrp*kwrps;
+  z10 = z5+z2-z7-z6*kwrps*kwrps;
+  wrp = 0.5*(Math.sqrt(z9*z9+4*z8*z10)+z9)/z8;
+  wrw = knrp*wrp;
+  wwwo = wrw+kwrps;
+  wrp2 = wrp*wrp;
+  pdco = pdrs-z1*wrp2+z2;
+  prpo = pdco+z3*wrp2+z4*wrp+z5;
+  erp = k4rp*wrp2/(rdc*rdc)+k5rp*wrp*nrp/rdc+k6rp*nrp2;
+  return [wrw, wrp, wwwo, pdco, prpo, erp];
+}
+
+function rwstat(r, p) {
+  let T, h, p2, r2, rp, s;
+  rp = r*p;
+  r2 = r*r;
+  p2 = p*p;
+  T = 163.60+29.199*r+4.2676e-2*p-7.2625e-4*rp-.45712*r2     +3.1826e-7*p2;
+  h = 658.45+11.887*r+3.9498e-2*p-5.6695e-4*rp-.31712*r2     -3.2973e-7*p2;
+  s = .7395+1.7257e-2*r+2.8021e-5*p-4.7572e-7*rp     -3.7372e-4*r2+2.4354e-10*p2;
+  return [h, T, s];
+}
+
+function rystat(h, p) {
+  let T, h2, p2, p2h2, ph, r, s;
+  p2 = p*p;
+  h2 = h*h;
+  p2h2 = p2*h2;
+  ph = p*h;
+  r = -4.2661e-2+3.0892e-5*h+6.2923e-3*p-3.4891e-6*ph;
+  T = -550.34-0.39473*h+1.6795*p-1.1363e-3*ph+9.3611e-4*h2     -4.1249e-4*p2+2.0849e-10*p2h2+459.67;
+  s = -0.473+2.47e-3*h-2.7302e-4*p-3.1543e-7*ph-5.6242e-7*h2+     2.8235e-7*p2+8.9539e-14*p2h2;
+  return [r, T, s];
+}
+
+function shflow(r, pd, kf) {
+  let kd1, w, zw;
+  kd1 = 1;
+  if ((pd<0)) {
+    pd = -pd;
+    kd1 = -1;
+  }
+  zw = Math.sqrt(pd*r/kf);
+  w = zw*kd1;
+  return w;
+}
+
+function shstat(r, h) {
+  let T, p, rh, s;
+  rh = r*h;
+  p = -291.36-964.04*r+0.21781*h+1.1815*rh;
+  T = -1745.1+129.1*r+1.8107*h-0.066313*rh+459.67;
+  s = 1.3136-1.7799e-3*r+6.3573e-4*h-8.3591e-2*Math.log(rh);
+  return [p, T, s];
+}
+
+function systat(h, p) {
+  let T, ph, r, s;
+  ph = p*h;
+  r = -1.9033+1.3862e-3*h+6.7569e-3*p-3.7659e-6*ph;
+  T = -1654.5+1.7443*h+0.34809*p-2.0743e-4*ph+459.67;
+  s = 0.46472+7.9581e-4*h-1.1683e-5*p-1.8658e-8*ph;
+  return [r, T, s];
+}
+
+function torque(nelec, velec, knm, n, km, smax) {
+  let mw1, nmax, s, tq1, velec2;
+  nmax = nelec/knm;
+  s = (nmax-n)/nmax;
+  velec2 = velec*velec;
+  tq1 = km*velec2/(s/smax+smax/s);
+  mw1 = tq1*n;
+  return [tq1, mw1];
+}
+
+function xducer(zmin, zmax, cmin, cmax, z) {
+  let c;
+  c = cmin+(cmax-cmin)*(z-zmin)/(zmax-zmin);
+  if ((c<cmin)) {
+    c = cmin;
+  }
+  if ((c>cmax)) {
+    c = cmax;
+  }
+  return c;
+}
+
+
+
+</script>
+<script>
+
+// digpte47.js — Derivada f(t,x) del modelo de 47 estados de la unidad de 600 MW
+// de Usoro (1977): caldera, turbina, generador y sus lazos PI originales.
+// Traduccion automatica a JavaScript de digpte47.m (Quintero-Marmol, 2026) con
+// las opciones de la reproduccion de Amin et al. (1984): soloTilt y lazos de
+// CBMD, CXGG y CWSY que se pueden abrir (P.openLoop, P.uFcn).
+// Devuelve [xdot, ylog]; ylog (si conLog) tiene las 38 columnas del registro
+// de MATLAB: 26..28 = TSSO, TRHO, PSSO; 29..31 = CBMD, CXGG, CWSY; 35 = ldc.
+
+function digpte47(t, x, P, conLog) {
+  const xdot = new Array(47).fill(0);
+  let acv, adv, afv, agv, aiv, avf, avi, c1dv, c1fn, c1ft, c1fv, c1gr, c1md, c1rh, c1tr, c2ar, c2dv, c2fl, c2fn, c2ft, c2fv, c2gr, c2md, c2rh, c2sy, c2tr, c3ar, c3dv, c3fl, c3fn, c3ft, c3fv, c3md, c3rh, c3sy, c3tr, c4ar, c4dv, c4fl, c4fn, c4fv, c4md, c4rh, c4sy, c4tr, c5ar, c5dv, c5fl, c5fn, c5fv, c5md, c5rh, c5sy, c5tr, c6ar, c6dv, c6fl, c6fv, c6rh, c6sy, c6tr, c7dv, c7fv, c7rh, c7sy, c8dv, c8fv, c8rh, c8sy, c9dv, c9sy, cacvd, card, cbmd, cdwd, cfld, cfnd, cftd, cfwd, cgrd, cmwtro, cntr, cntre, cp1st, cpdrs, cpfn, cpfvd, cprho, cpsso, cry, csy, csyd, ctrho, ctsso, cwar, cwcw, cwfl, cwfw, cwsy, cxdew, cxdrw, cxgg, cxggd, delta, ecp, efd, efp, ehp, eid, eip, erp, f1de, f1dr, f2de, f2dr, fc2dv, fcp1st, fctrho, fcxgg, h1lhs1, h2hhs1, h2lhs1, h2lhso, h3hhso, h3lhso, hcno, hcpo, hcro, hdc1, hdebd, hderp, hdes, hdew, hdewh, hdex, hdrs, hdrw, hece, heco, hfpo, hft1, hfvo, hhhe, hhho, hhpo, hlhe, hlho, hlpo, hpse, hpso, hrh1, hrhe, hrho, hrpo, hss1, hsse, hsso, hwwo, kcgr, kcntr, kcpfn, kcpfvd, kcpsso, kctrh, kctss, kcwgr, kcxdew, kcxdrw, keip, kelp, knfd_, knid_, kpsso, ktrh, ktss, kwgr, ldc, mece, mecw, mhhe, mhhw, mlhe, mlhw, mpse, mpss, mrhe, mrhs, msse, msss, mwcp1, mwfd1, mwfp1, mwgn, mwgnpu, mwhp, mwid1, mwip, mwlp, mwo, mwrp1, mwtro, mwwme, ncp, nelec_, nfd, nfp, ngg, nid, nrp, ntr, p1lhs, p1st, p2hhs, p2lhs, p3hhso, p3lhs, pahao, papgo, pbpo, pcn, pcpo, pcro, pdco, pdes, pdrs, pece, pecgo, pfdo, pfn, pfpo, pfvd, pfvo, phhe, phho, phpo, pido, plhe, plho, ppsd, ppse, ppso, prhe, prho, prpo, psco, pssd, psse, psso, psso_m, qdesr, qec, qecr, qhh, qlh, qps, qpsr, qrh, qrhr, qss, qssr, qwwgm, qwwmw, qylpo, r2lhso, r3hhso, r3lhso, rahao, rapgo, rcno, rcro, rdc, rdc1, rdes, rdew, rdrs, rdrw, rdvo, rece, reco, rhhe, rhho, rlhe, rlho, rlpo, rpse, rpso, rrh1, rrhe, rrho, rsco, rss1, rsse, rsso, s, secgo, slpo, spse, spsgo, spso, srhe, srhgo, srho, srpo, ssco, sss1, ssse, sssgo, ssso, swwgo, t2lhso, t3hhso, t3lhso, tahao, tapao, tcn, tcpo, tcro, tdc1, tdes, tdrs, tdvo, tece, tecgo, tecme, teco, tfn1, tfpo, tgr, thhe, thhme, thho, thpo, tlhe, tlhme, tlho, tpse, tpsgo, tpsme, tpso, tqcp1, tqfd1, tqfp1, tqid1, tqrp1, trco, trh1rh1, trhe, trhgo, trhme, trho, trho_m, tsco, tss1, tsse, tssgo, tssme, tsso, tsso_m, twwge, twwgo, twwm, uExt, ungg, uwwgm, uxgg, vdew, vdrw, velec_, vmeas, w1hhs, w1lhs, w2hhs, w2lhs, w3hhs, war, wcp, wcw, wdebd, wderp, wdesr, wdewh, wdex, wdrbd, wdrs, wdvo, wfd, wfl, wfp, wft, wfw, wfw2, wgo, wgr, whhs, whhst, whp, whpaux, whpo, wid, wip, wipftx, wipo, wiv, wlhst, wlhx, wlp, wpse, wpso, wpsx, wrh1, wrhe, wrp, wrw, wry, wss1, wsse, wsso, wssx, wsy, wtv, wwwg, wwwo, xdew, xdrw, xgg, z206, z209, z226, z229, zwfw;
+  nfp = x[0];
+  hhho = x[1];
+  heco = x[2];
+  vdrw = x[3];
+  rdrs = x[4];
+  nrp = x[5];
+  twwm = x[6];
+  rpso = x[7];
+  hpso = x[8];
+  rsso = x[9];
+  hsso = x[10];
+  rsco = x[11];
+  rrho = x[12];
+  hrho = x[13];
+  rcro = x[14];
+  ntr = x[15];
+  ncp = x[16];
+  hlho = x[17];
+  vdew = x[18];
+  rdes = x[19];
+  nfd = x[20];
+  nid = x[21];
+  c3md = x[22];
+  c5ar = x[23];
+  c5fl = x[24];
+  c3fn = x[25];
+  c2gr = x[26];
+  c2ft = x[27];
+  c3fv = x[28];
+  c7fv = x[29];
+  c3dv = x[30];
+  c8dv = x[31];
+  c5rh = x[32];
+  c5sy = x[33];
+  card = x[34];
+  cfld = x[35];
+  cfnd = x[36];
+  cgrd = x[37];
+  cftd = x[38];
+  cfwd = x[39];
+  cdwd = x[40];
+  cxggd = x[41];
+  csyd = x[42];
+  c2tr = x[43];
+  c4tr = x[44];
+  cacvd = x[45];
+  delta = x[46];
+  ldc = P.ldcFcn(t);
+  uExt = ((P.openLoop[0]||P.openLoop[1]||P.openLoop[2]) ? P.uFcn(t) : [0,0,0]);
+  fc2dv = 0;
+  fcp1st = 0;
+  fctrho = 0;
+  fcxgg = 0;
+  card = limchk(card);
+  avf = xducer(P.kcl,P.kcu,P.kavl,P.kavu,card);
+  cfld = limchk(cfld);
+  wfl = xducer(P.kcl,P.kcu,P.kwfll,P.kwflu,cfld);
+  cfnd = limchk(cfnd);
+  avi = xducer(P.kcl,P.kcu,P.kavl,P.kavu,cfnd);
+  cgrd = limchk(cgrd);
+  kwgr = P.kc2gr*wfl;
+  kcwgr = xducer(P.kwgrl,P.kwgru,P.kcl,P.kcu,kwgr);
+  cfld = limchk(cfld);
+  cgrd = check(cgrd,kcwgr,P.kcl);
+  wgr = xducer(P.kcl,P.kcu,P.kwgrl,P.kwgru,cgrd);
+  cftd = limchk(cftd);
+  wft = xducer(P.kcl,P.kcu,P.kwftl,P.kwftu,cftd);
+  cfwd = limchk(cfwd);
+  afv = xducer(P.kcl,P.kcu,P.kavl,P.kavu,cfwd);
+  cdwd = limchk(cdwd);
+  adv = xducer(P.kcl,P.kcu,P.kavl,P.kavu,cdwd);
+  cxggd = limchk(cxggd);
+  cry = P.kc1ry*cxggd;
+  wry = xducer(P.kcryl,P.kcryu,P.kwryl,P.kwryu,cry);
+  if (P.soloTilt) {
+    wry = 0;
+  }
+  xgg = xducer(P.kcl,P.kcu,P.kxggl,P.kxggu,cxggd);
+  csyd = limchk(csyd);
+  csy = csyd*P.kc4sy;
+  wsy = xducer(P.kcsyl,P.kcsyu,P.kwsyl,P.kwsyu,csy);
+  agv = xducer(P.kn0,P.kn5,P.kavl,P.kavu,cacvd);
+  aiv = 1.0;
+  [rdrw, hdrw, hdrs, pdrs, tdrs] = drstat(rdrs);
+  [rdew, hdew, hdes, pdes, tdes] = destat(rdes);
+  [ppso, tpso, spso] = shstat(rpso,hpso);
+  [psso, tsso, ssso] = shstat(rsso,hsso);
+  [psco, tsco, ssco] = shstat(rsco,hsso);
+  [prho, trho, srho] = rhstat(rrho,hrho);
+  [reco, teco] = fwstat(heco,pdrs);
+  [rdvo, tdvo] = cwstat(hlho,pdes);
+  ppsd = pdrs-ppso;
+  wdrs = shflow(rdrs,ppsd,P.kfps);
+  acv = agv;
+  wtv = P.kcv*acv*Math.sqrt(psso*rsso);
+  wpsx = P.kn0;
+  if ((wtv<P.kwtv)) {
+    wpsx = (101.56064-0.39882*wdrs+4.8626e-4*wdrs*wdrs);
+  }
+  pssd = ppso-psso;
+  wss1 = shflow(rsso,pssd,P.kfss);
+  wpso = wss1+wpsx-wsy;
+  whp = P.khp*Math.sqrt(rsco*psco);
+  wssx = P.kn0;
+  if ((wtv<P.kwtv)) {
+    wssx = wft;
+  }
+  wsso = wtv+wssx;
+  [whpaux, w1hhs] = hpext(whp);
+  whpo = whp-whpaux-w1hhs;
+  wrh1 = whpo+wry;
+  wiv = P.kip*aiv*Math.sqrt(rrho*prho);
+  wip = wiv;
+  ehp = 0.589+2.317e-4*whp;
+  phpo = prho+P.kfrh*wip*wip/rrho;
+  [hhpo, thpo] = hpstat(ssso,phpo,ehp,hsso);
+  eip = 0.814;
+  [hcro, pcro, tcro] = crstat(srho,rcro,eip,hrho);
+  wlp = P.klp*Math.sqrt(rcro*pcro);
+  pcn = P.k0pcn+P.k1pcn*pcro+P.k2pcn*pcro*pcro;
+  qylpo = P.kqylpo;
+  [hlpo, rlpo, slpo, tcn, rcno, hcno] = cnstat(pcn,qylpo);
+  mwhp = whp*(hsso-hhpo)*P.kj;
+  keip = 0.93;
+  kelp = 0.93;
+  mwip = wip*(hrho-hcro)*P.kj*keip;
+  mwlp = wlp*(hcro-hlpo)*P.kj*kelp;
+  mwtro = mwhp+mwip+mwlp;
+  mwo = mwtro*P.kmwx;
+  mwgnpu = P.kn2*Math.sin(delta);
+  mwgn = mwgnpu*P.kmwr;
+  [w2hhs, w3hhs, h2hhs1, p2hhs, p3hhso] = ipext(wip,prho,pcro,hrho,hcro);
+  wipftx = wft;
+  if ((wssx>P.kn0)) {
+    wipftx = P.kn0;
+  }
+  wipo = wip-w2hhs-w3hhs-wipftx;
+  [wcw, wcp, pcpo, plho, wlhx, wdvo, ecp] = cwflow (pcn,rcno,rdvo,pdes,ncp,adv,P.kncp);
+  [hcpo, tcpo] = cpstat(rcno,pcpo);
+  [rlho, tlho] = cwstat(hlho,plho);
+  [wfp, wfw, wfw2, pbpo, pfpo, pfvo, phho, pfvd, efp] = fwflow (wry,wsy,rdew,pdes,pdrs,reco,afv,nfp);
+  [hfpo, tfpo] = fpstat(rdew,pfpo);
+  hfvo = hfpo;
+  [rhho, thho] = fwstat(hhho,phho);
+  rdc = rdrw;
+  [wrw, wrp, wwwo, pdco, prpo, erp] = rwflow     (P.knrp,rdc,rdrw,nrp,pdrs);
+  hdc1 = (wfw*heco+hdrw*(wrw-wfw))/wrw;
+  hss1 = ((wpso-wpsx)*hpso+wsy*hfpo)/wss1;
+  hrh1 = (whpo*hhpo+wry*hfpo)/wrh1;
+  [rdc1, tdc1] = fwstat(hdc1,pdrs);
+  [hrpo, trco, srpo] = rwstat(rdc1,prpo);
+  [rss1, tss1, sss1] = systat(hss1,ppso);
+  [rrh1, trh1rh1, s] = rystat(hrh1,phpo);
+  [w1lhs, w2lhs, wdex, wlhst, p1lhs, p2lhs, p3lhs, h1lhs1, h2lhs1, hdex] = lpext(wlp,pcro,pcn,hcro,hlpo);
+  [h2lhso, r2lhso, t2lhso] = lwstat(p2lhs);
+  [h3lhso, r3lhso, t3lhso] = lwstat(p3lhs);
+  qlh = w1lhs*(h1lhs1-h3lhso)+w2lhs*(h2lhs1-h2lhso);
+  whhst = w1hhs+w2hhs+w3hhs;
+  [h3hhso, r3hhso, t3hhso] = lsstat(p3hhso);
+  qhh = w1hhs*hhpo+w2hhs*h2hhs1+w3hhs*hcro-whhst*h3hhso;
+  whhs = whhst;
+  if ((wfw<P.kwfw)) {
+    whhs = P.kn0;
+  }
+  [wpse, rpse, hpse] = averag(wdrs,wpso,rdrs,rpso,hdrs,hpso);
+  [wsse, rsse, hsse] = averag(wss1,wsso,rss1,rsso,hss1,hsso);
+  [wrhe, rrhe, hrhe] = averag(wrh1,wip,rrh1,rrho,hrh1,hrho);
+  [pece, hece, plhe] = averag(phho,pdrs,hhho,heco,pcpo,plho);
+  [phhe, hhhe, hlhe] = averag(pfvo,phho,hfvo,hhho,hcpo,hlho);
+  [ppse, tpse, spse] = shstat(rpse,hpse);
+  [psse, tsse, ssse] = shstat(rsse,hsse);
+  [prhe, trhe, srhe] = rhstat(rrhe,hrhe);
+  [rece, tece] = fwstat(hece,pece);
+  [rhhe, thhe] = fwstat(hhhe,phhe);
+  [rlhe, tlhe] = cwstat(hlhe,plhe);
+  velec_ = P.velec;
+  nelec_ = P.nelec;
+  knfd_ = P.knfd;
+  knid_ = P.knid;
+  [war, wwwg, wfd, wgo, wid, pahao, pfdo, pfn, pecgo, papgo, pido, efd, eid] = arflow(knfd_,knid_,nfd,nid,wgr,wfl,avf,avi,P.kfcal);
+  tahao = P.ktat+P.ktahad;
+  tapao = tahao+P.ktapad;
+  uxgg = P.k1xgg+P.k2xgg*Math.sin(xgg)/Math.cos(xgg);
+  ngg = P.ng1+P.ng2+P.ng3+P.ng4+P.ng5;
+  ungg = (P.ng1*P.k1ng+P.ng2*P.k2ng+P.ng3*P.k3ng+P.ng4*P.k4ng+P.ng5*P.k5ng)/     (ngg*P.kxwwe);
+  uwwgm = P.kuwwgm*uxgg*ungg;
+  tgr = P.k1tgr+P.k2tgr*wfl;
+  [tfn1, twwge, twwgo, qwwgm, qpsr, swwgo] = fnxfer(twwm,wwwg,war, P.sar,tapao,wfl,P.s_fl,P.tfl,P.khfl,P.efl,wgr,P.sgr,tgr,uwwgm,P.ywgr, tpse,P.kupsr);
+  qwwmw = P.kuwwmw*(twwm-tdrs)**3;
+  qssr = P.kn0;
+  qrhr = P.kn0;
+  qecr = P.kn0;
+  [tpsgo, qps, tpsme, spsgo] = hxfer     (wwwg,wpse,P.kupsgm,P.kupsms,tpse,twwgo,qpsr,P.ywgr);
+  [tssgo, qss, tssme, sssgo] = hxfer     (wwwg,wsse,P.kussgm,P.kussms,tsse,tpsgo,qssr,P.ywgr);
+  [trhgo, qrh, trhme, srhgo] = hxfer     (wwwg,wrhe,P.kurhgm,P.kurhms,trhe,tssgo,qrhr,P.ywgr);
+  [tecgo, qec, tecme, secgo] = hxfer     (wwwg,wfw,P.kuecgm,P.kuecmw,tece,trhgo,qecr,P.ywgr);
+  tlhme = P.klhm*tlho;
+  thhme = P.khhm*thho;
+  mwwme = P.kmwwm+P.kvww*rdrw*hdrw/(P.kswwm*twwm);
+  mpss = rpse*P.kvps;
+  mpse = mpss+P.kmpsm*P.kspsm*tpsme/hpse;
+  msss = rsse*P.kvss;
+  msse = msss+P.kmssm*P.ksssm*tssme/hsse;
+  mrhs = rrhe*P.kvrh;
+  mrhe = mrhs+P.kmrhm*P.ksrhm*trhme/hrhe;
+  mecw = rece*P.kvec;
+  mece = mecw+P.kmecm*P.ksecm*tecme/hece;
+  mlhw = rlhe*P.kvlh;
+  mlhe = mlhw+P.kmlhm*P.kslhm*tlhme/hlhe;
+  mhhw = rhhe*P.kvhh;
+  mhhe = mhhw+P.kmhhm*P.kshhm*thhme/hhhe;
+  rahao = 0.0661;
+  rapgo = 0.044;
+  hwwo = hrpo+qwwmw/wwwo;
+  [wderp, wdewh, wdebd, hderp, hdewh] = destmr(wdrs,whp);
+  hdebd = hdes;
+  wdrbd = P.kn2*wdebd;
+  wdesr = wderp+wdewh+wdebd;
+  qdesr = wderp*hderp+wdewh*hdewh+wdebd*hdebd;
+  z206 = wfw-wrw+wwwo-wdrs-wdrbd;
+  z209 = wwwo*hwwo-(wrw-wfw)*hdrw-wdrs*hdrs-wdrbd*hdrs;
+  z226 = wdvo+whhs+wdex+wdesr-wfp;
+  z229 = wdvo*hlho+whhs*h3hhso+wdex*hdex+qdesr-wfp*hdew;
+  [f1dr, f2dr] = drum(P.kvdr,vdrw,rdrs,rdrw,hdrw,hdrs,     P.k2,P.k3,P.k5,P.k6,P.k7,P.k9,P.k10,z206,z209);
+  [f1de, f2de] = drum(P.kvde,vdew,rdes,rdew,hdew,hdes,     P.k22,P.k23,P.k25,P.k26,P.k27,P.k29,P.k30,z226,z229);
+  [tqrp1, mwrp1] = torque(nelec_,velec_,P.knrpm,nrp,P.krpm,P.srpmax);
+  [tqcp1, mwcp1] = torque(nelec_,velec_,P.kncpm,ncp,P.kcpm,P.scpmax);
+  [tqfd1, mwfd1] = torque(nelec_,velec_,P.knfdm,nfd,P.kfdm,P.sfdmax);
+  [tqid1, mwid1] = torque(nelec_,velec_,P.knidm,nid,P.kidm,P.sidmax);
+  hft1 = hcro;
+  if ((wssx>P.kn0)) {
+    hft1 = hsso;
+  }
+  [tqfp1, mwfp1] = fpturb(wft,hft1,nfp);
+  xdew = P.k1xdew+P.k2xdew*vdew+P.k3xdew*vdew*vdew;
+  xdrw = P.k1xdrw+P.k2xdrw*vdrw+P.k3xdrw*vdrw*vdrw;
+  p1st = P.k1p1st*whp;
+  kpsso = P.k1pss+P.k2pss*ldc;
+  kpsso = check(kpsso,P.k4pss,P.k3pss);
+  kpsso = P.k4pss;
+  vmeas = [0,0,0];
+  tsso_m = tsso + vmeas[0];
+  trho_m = trho + vmeas[1];
+  psso_m = psso + vmeas[2];
+  kcpsso = xducer(P.kpssol,P.kpssou,P.kcl,P.kcu,kpsso);
+  cpsso = xducer(P.kpssol,P.kpssou,P.kcl,P.kcu,psso_m);
+  c1md = kcpsso-cpsso;
+  c2md = c1md*P.kc1md;
+  c3md = limchk(c3md);
+  c4md = c2md+c3md;
+  c4md = limchk(c4md);
+  cntr = xducer(P.kntrl,P.kntru,P.kcl,P.kcu,ntr);
+  kcntr = xducer(P.kntrl,P.kntru,P.kcl,P.kcu,P.kntr);
+  c5md = P.kc2md*(kcntr-cntr);
+  cbmd = c4md+c5md;
+  if (P.openLoop[0]) {
+    cbmd = uExt[0];
+  }
+  cbmd = limchk(cbmd);
+  cwar = xducer(P.kwarl,P.kwaru,P.kcl,P.kcu,war);
+  cwfl = cfld;
+  c2ar = cbmd;
+  if ((cwfl>cbmd)) {
+    c2ar = cwfl;
+  }
+  if ((c2ar<P.kc2arl)) {
+    c2ar = P.kc2arl;
+  }
+  c3ar = c2ar-cwar;
+  c4ar = c3ar*P.kc1ar;
+  c5ar = limchk(c5ar);
+  c6ar = c4ar+c5ar;
+  c6ar = limchk(c6ar);
+  c2fl = cbmd;
+  if ((cwar<cbmd)) {
+    c2fl = cwar;
+  }
+  c3fl = c2fl-cwfl;
+  c4fl = c3fl*P.kc1fl;
+  c5fl = limchk(c5fl);
+  c6fl = c4fl+c5fl;
+  c6fl = limchk(c6fl);
+  cpfn = xducer(P.kpfnl,P.kpfnu,P.kcl,P.kcu,pfn);
+  kcpfn = xducer(P.kpfnl,P.kpfnu,P.kcl,P.kcu,P.kpfn);
+  c1fn = kcpfn-cpfn;
+  c2fn = c1fn*P.kc1fn;
+  c3fn = limchk(c3fn);
+  c4fn = c2fn+c3fn;
+  c4fn = limchk(c4fn);
+  c5fn = c4fn+P.kc2fn*cwar;
+  c5fn = limchk(c5fn);
+  kcgr = P.kn0;
+  if ((Math.abs(xgg)>P.knp087)) {
+    kcgr = P.kn1;
+  }
+  c1gr = cxggd-P.kcxgg;
+  c2gr = limchk(c2gr);
+  cpfvd = xducer(P.kpfvdl,P.kpfvdu,P.kcl,P.kcu,pfvd);
+  kcpfvd = xducer(P.kpfvdl,P.kpfvdu,P.kcl,P.kcu,P.kpfvd);
+  c1ft = P.kc1ft*(kcpfvd-cpfvd);
+  c2ft = limchk(c2ft);
+  c3ft = c1ft+c2ft;
+  c3ft = limchk(c3ft);
+  zwfw = wfw+wsy;
+  cwfw = xducer(P.kwfwl,P.kwfwu,P.kcl,P.kcu,zwfw);
+  cp1st = xducer(P.kp1stl,P.kp1stu,P.kcl,P.kcu,p1st);
+  cxdrw = xducer(P.kxdrwl,P.kxdrwu,P.kcl,P.kcu,xdrw);
+  kcxdrw = xducer(P.kxdrwl,P.kxdrwu,P.kcl,P.kcu,P.kxdrw);
+  cpdrs = xducer(P.kpdrsl,P.kpdrsu,P.kcl,P.kcu,pdrs);
+  c1fv = cxdrw+P.kc4fv*cpdrs;
+  c2fv = P.kc1fv*(kcxdrw-c1fv);
+  c3fv = check(c3fv,P.kn5,P.km5);
+  c4fv = c2fv+c3fv;
+  c4fv = check(c4fv,P.kn5,P.km5);
+  c5fv = P.kc2fv*(cp1st-cwfw);
+  c6fv = P.kc3fv*(c4fv+c5fv);
+  c7fv = limchk(c7fv);
+  c8fv = c6fv+c7fv;
+  c8fv = limchk(c8fv);
+  cprho = xducer(P.kprhol,P.kprhou,P.kcl,P.kcu,prho);
+  cwcw = xducer(P.kwcwl,P.kwcwu,P.kcl,P.kcu,wcw);
+  cxdew = xducer(P.kxdewl,P.kxdewu,P.kcl,P.kcu,xdew);
+  kcxdew = xducer(P.kxdewl,P.kxdewu,P.kcl,P.kcu,P.kxdew);
+  c1dv = kcxdew-cxdew;
+  c2dv = c1dv*P.kc1dv;
+  c3dv = check(c3dv,P.kn5,P.km5);
+  c4dv = P.ktc2dv*fc2dv;
+  c5dv = c2dv+c3dv+c4dv;
+  c5dv = check(c5dv,P.kn5,P.km5);
+  c6dv = P.kc4dv*cprho-P.kc5dv*cwcw;
+  c7dv = P.kc2dv*(c5dv+P.kc6dv*c6dv);
+  c8dv = limchk(c8dv);
+  c9dv = c7dv+c8dv;
+  c9dv = limchk(c9dv);
+  ctrho = xducer(P.ktrhol,P.ktrhou,P.kcl,P.kcu,trho_m);
+  ktrh = P.k1trh+P.k2trh*whp;
+  ktrh = check(ktrh,P.k4trh,P.k3trh);
+  kctrh = xducer(P.ktrhol,P.ktrhou,P.kcl,P.kcu,ktrh);
+  c1rh = kctrh;
+  c2rh = fcp1st*P.kc3rh;
+  c3rh = c1rh+c2rh-ctrho;
+  c4rh = c3rh*P.kc1rh;
+  c5rh = limchk(c5rh);
+  c6rh = c4rh+c5rh;
+  c6rh = limchk(c6rh);
+  c7rh = fctrho*P.kc2rh;
+  c8rh = c6rh+c7rh;
+  c8rh = limchk(c8rh);
+  cxgg = c8rh;
+  if (P.openLoop[1]) {
+    cxgg = limchk(uExt[1]);
+  }
+  ktss = P.k1tss+P.k2tss*whp;
+  ktss = check(ktss,P.k4tss,P.k3tss);
+  ctsso = xducer(P.ktssol,P.ktssou,P.kcl,P.kcu,tsso_m);
+  kctss = xducer(P.ktssol,P.ktssou,P.kcl,P.kcu,ktss);
+  c2sy = kctss;
+  c3sy = c2sy-ctsso;
+  c4sy = c3sy*P.kc1sy;
+  c5sy = limchk(c5sy);
+  c6sy = c4sy+c5sy;
+  c6sy = limchk(c6sy);
+  c7sy = fcp1st*P.kc2sy;
+  c8sy = fcxgg*P.kc3sy;
+  c9sy = c6sy+c7sy+c8sy;
+  c9sy = limchk(c9sy);
+  cwsy = c9sy;
+  if (P.openLoop[2]) {
+    cwsy = limchk(uExt[2]);
+  }
+  cmwtro = xducer(P.kmwtrl,P.kmwtru,P.kn0,P.kn6,mwtro);
+  cntre = kcntr-cntr;
+  c1tr = P.kc1tr*(ldc-cmwtro);
+  c2tr = check(c2tr,P.kn1,P.km1);
+  c3tr = c1tr+c2tr+ldc;
+  c3tr = check(c3tr,P.kn5,P.kn0);
+  c4tr = check(c4tr,P.kn5,P.kn0);
+  c5tr = P.kc2tr*cntre;
+  c6tr = c5tr/P.kcvreg+c4tr;
+  c6tr = check(c6tr,P.kn5,P.kn0);
+  cacvd = check(cacvd,P.kn5,P.kn0);
+  xdot[0]=(tqfp1-wfp*(pfpo-pdes)*P.kn144/(nfp*rdew*efp))/P.kjfpe;
+  xdot[1]=(wfw*(hfvo-hhho)+qhh)/mhhe;
+  xdot[2]=(wfw*(hhho-heco)+qec)/mece;
+  xdot[3]=f1dr;
+  xdot[4]=f2dr;
+  xdot[5]=(tqrp1-wrp*(prpo-pdco)*P.kn144/(nrp*rdc*erp))/P.kjrp;
+  xdot[6]=(qwwgm-qwwmw)/(mwwme*P.kswwm);
+  xdot[7]=(wdrs-wpso)/P.kvps;
+  xdot[8]=(wdrs*hdrs-wpso*hpso+qps)/mpse;
+  xdot[9]=(wss1-wsso)/P.kvss;
+  xdot[10]=(wss1*hss1-wsso*hsso+qss)/msse;
+  xdot[11]=(wtv-whp)/P.kvsce;
+  xdot[12]=(wrh1-wiv)/P.kvrh;
+  xdot[13]=(wrh1*hrh1-wiv*hrho+qrh)/mrhe;
+  xdot[14]=(wipo-wlp)/P.kvcre;
+  xdot[15]=(mwtro-mwgn)/(ntr*P.kjtre/32.174);
+  xdot[16]=(tqcp1-wcp*(pcpo-pcn)*P.kn144/(ncp*rcno*ecp))/P.kjcp;
+  xdot[17]=(wcw*(hcpo-hlho)+qlh+P.kqgc)/mlhe;
+  xdot[18]=f1de;
+  xdot[19]=f2de;
+  xdot[20]=(tqfd1-wfd*(pfdo-pahao)*P.kn144/(nfd*rahao*efd))/P.kjfd;
+  xdot[21]=(tqid1-wid*(pido-papgo)*P.kn144/(nid*rapgo*eid))/P.kjid;
+  xdot[22]=c2md/P.ktc1md;
+  if (P.openLoop[0]) {
+    xdot[22]=0;
+  }
+  xdot[23]=c4ar/P.ktc1ar;
+  xdot[24]=c4fl/P.ktc1fl;
+  xdot[25]=c2fn/P.ktc1fn;
+  xdot[26]=c1gr*P.kc1gr*kcgr;
+  xdot[27]=c1ft/P.ktc1ft;
+  xdot[28]=c2fv/P.ktc1fv;
+  xdot[29]=c6fv/P.ktc2fv;
+  xdot[30]=c2dv/P.ktc1dv;
+  xdot[31]=c7dv/P.ktc3dv;
+  xdot[32]=c4rh/P.ktc1rh;
+  if (P.openLoop[1]) {
+    xdot[32]=0;
+  }
+  xdot[33]=c4sy/P.ktc1sy;
+  if (P.openLoop[2]) {
+    xdot[33]=0;
+  }
+  xdot[34]=(c6ar-card)/P.ktc2ar;
+  xdot[35]=(c6fl-cfld)/P.ktc2fl;
+  xdot[36]=(c5fn-cfnd)/P.ktc2fn;
+  xdot[37]=(c2gr-cgrd)/P.ktc1gr;
+  if (P.grFreeze) {
+    xdot[37]=0;
+  }
+  xdot[38]=(c3ft-cftd)/P.ktc2ft;
+  xdot[39]=(c8fv-cfwd)/P.ktc3fv;
+  xdot[40]=(c9dv-cdwd)/P.ktc4dv;
+  xdot[41]=(cxgg-cxggd)/P.ktc2rh;
+  xdot[42]=(cwsy-csyd)/P.ktc2sy;
+  xdot[43]=c1tr/P.ktc1tr;
+  xdot[44]=(c3tr-c4tr)/P.ktc2tr;
+  xdot[45]=(c6tr-cacvd)/P.ktc3tr;
+  xdot[46]=P.kc1gn*(ntr-nelec_);
+  if (!conLog) return [xdot, null];
+  const ylog=[t,ntr,mwo,psso,whp,c3md,cacvd,cfld,card,
+    vdrw,vdew,cfwd,cdwd,hsso,hrho,csyd,cxggd,
+    nfp,cgrd,cfnd,twwm,nfd,nid,nrp,ncp,
+    tsso,trho,psso,cbmd,cxgg,cwsy,
+    ktss,ktrh,kpsso,ldc,
+    tsso_m,trho_m,psso_m];
+  return [xdot, ylog];
+}
+
+
+</script>
+<script>
+// Datos del simulador: parametros de la planta (amin_planta, con soloTilt), redes NNARX 3x3 y 3x4
+// (stc-neuronal, sn_nnarx.mat y sn_nnarx34.mat) y estados estacionarios de 50 a 100 % (amin_estacionario).
+window.DATOS = {"P":{"Ts":0.1,"adf":1,"adi":1,"caivd":5,"catvd":5,"clampStates":0,"count":200,"efl":1,"k0pcn":0.26449,"k10":0.20998,"k1mwd":-110700000,"k1ng":79.868,"k1p1st":1.64384,"k1pcn":0.000138076,"k1pss":81.37,"k1tgr":929.69,"k1trh":1192.5,"k1tss":1338,"k1vreg":0.02,"k1xdew":-29.138,"k1xdrw":-29.118,"k1xgg":1,"k2":-2.13733,"k22":-19.61207,"k23":0,"k25":1905.6372,"k26":-8414.69018,"k27":15688.03769,"k29":224.556,"k2mwd":110700000,"k2ng":72.201,"k2pcn":0.0000130065,"k2pss":533.333,"k2tgr":2.15172,"k2trh":0.4126,"k2tss":0.1925,"k2xdew":-0.0095377,"k2xdrw":0.02262,"k2xgg":-0.286483,"k3":0.03348,"k30":0,"k3ng":64.534,"k3pss":815,"k3trh":1259.67,"k3tss":1359.67,"k3xdew":0.000002026,"k3xdrw":0.0000019297,"k4ng":56.867,"k4pss":2415,"k4trh":1459.67,"k4tss":1459.67,"k5":31.0437,"k5ng":49.2,"k6":-0.62086,"k7":0,"k9":-21.3442,"kafr":13.6507,"kavl":0,"kavu":1,"kc1ar":3,"kc1bt":1,"kc1dv":10,"kc1fl":3,"kc1fn":-1.25,"kc1ft":0.5,"kc1fv":2,"kc1gn":1,"kc1gr":0.004,"kc1ld":0.3,"kc1md":20,"kc1rh":5,"kc1ry":-1,"kc1sy":10,"kc1tr":1,"kc2arl":1.81656,"kc2dv":1,"kc2fn":0,"kc2ft":1,"kc2fv":1,"kc2gr":12,"kc2ld":0,"kc2md":0.5,"kc2rh":-0.01,"kc2sy":0.01,"kc2tr":1,"kc3fl":1,"kc3fn":1,"kc3fv":1,"kc3gr":1,"kc3rh":0.01,"kc3sy":-0.01,"kc4ar":1,"kc4dv":0.1,"kc4fv":0,"kc4rh":1,"kc4sy":-1,"kc5dv":0.1,"kc5rh":1,"kc5sy":1,"kc6dv":1,"kc6fv":1,"kcl":1,"kcpm":0.000615533,"kcryl":-2,"kcryu":-1,"kcsyl":-5,"kcsyu":-1,"kcu":5,"kcv":12.74214,"kcvreg":0.05,"kcxgg":3,"ketr":0.955,"kfdc":0.000719028,"kfdm":0.0041,"kfec":0.003878121,"kfhh":0.005711565,"kflh":0.003914168,"kfps":0.00188,"kfrh":0.00004590723,"kfss":0.0003162,"kfv":0.0004823549,"kfww":0.000159751,"khfl":18200,"khhm":1.05,"khp":15.6,"kidm":0.00616,"kip":51.78706,"kj":778.17,"kjcp":468,"kjfd":181900,"kjfpe":2161.7,"kjid":188000,"kjrp":576.1,"kjtre":625000,"klhm":1.05,"klp":126.41,"klrl":0.008333,"km1":-1,"km4":-4,"km5":-5,"kmecm":721000,"kmhhm":108400,"kmlhm":70376,"kmode":1,"kmpsm":350000,"kmrhm":944000,"kmrl":0.5,"kmssm":800000,"kmwr":442800000,"kmwtrl":0,"kmwtru":531360000,"kmwwm":1063000,"kmwx":0.000001355,"kn0":0,"kn1":1,"kn144":144,"kn1p3":1.234,"kn2":2,"kn3":3,"kn4":4,"kn5":5,"kn6":6,"kncp":2,"kncpm":2,"knfd":2,"knfdm":6,"knid":2,"knidm":4,"knp087":0.08727,"knp33":0.333333,"knp5":0.5,"knp6":0.6,"knp79":0.788654,"knp8":0.8,"knrp":6,"knrpm":2,"kntr":376.991,"kntrl":0,"kntru":450,"kp1stl":0,"kp1stu":2054.8,"kpat":14.7,"kpdrsl":0,"kpdrsu":4000,"kpfn":14.7,"kpfnl":14,"kpfnu":15,"kpfvd":30,"kpfvdl":0,"kpfvdu":40,"kprhol":0,"kprhou":800,"kpssol":0,"kpssou":3015,"kqgc":1647.52,"kqylpo":0.92632,"kr":0.357639,"krpm":0.000476146,"ksecm":0.11,"kshhm":0.11,"kslhm":0.11,"kspsm":0.11,"ksrhm":0.11,"ksssm":0.11,"ksvreg":0.05,"kswwm":0.11,"ktahad":88,"ktapad":350,"ktat":510,"ktc1ar":60,"ktc1dv":40,"ktc1fl":60,"ktc1fn":40,"ktc1ft":60,"ktc1fv":50,"ktc1gr":20,"ktc1ld":1,"ktc1md":60,"ktc1rh":60,"ktc1sy":60,"ktc1tr":10,"ktc2ar":5,"ktc2dv":2,"ktc2fl":5,"ktc2fn":5,"ktc2ft":5,"ktc2fv":120,"ktc2rh":5,"ktc2sy":5,"ktc2tr":1,"ktc3dv":120,"ktc3fv":5,"ktc3rh":5,"ktc3tr":1,"ktc4dv":5,"ktc4tr":1,"ktc5tr":1,"ktrho":1459.67,"ktrhol":1159.67,"ktrhou":1559.67,"ktsso":1459.67,"ktssol":1159.67,"ktssou":1559.67,"ktv":32,"kuecgm":9.32379,"kuecmw":8.591464,"kupsgm":1.80123,"kupsms":2.34465,"kupsr":1.38576e-10,"kurhgm":8.0954,"kurhms":4.47939,"kussgm":3.75513,"kussms":6.753101,"kuwwgm":3.187029e-9,"kuwwmw":173.5205,"kvcre":1220,"kvde":8029.9,"kvdr":1958.72,"kvec":2100,"kvhh":114.67,"kvlh":93.02,"kvps":2000,"kvrh":6000,"kvrl":0.5,"kvsce":700,"kvss":3000,"kvww":2318.61,"kwarl":0,"kwaru":1381.4,"kwcwl":0,"kwcwu":1355,"kwfll":0,"kwflu":90,"kwftl":0,"kwftu":50,"kwfw":493.03,"kwfwl":0,"kwfwu":1250,"kwgrl":0,"kwgru":500,"kwryl":0,"kwryu":50,"kwsyl":0,"kwsyu":100,"kwtv":506.7,"kxdew":0,"kxdewl":-20,"kxdewu":20,"kxdrw":0,"kxdrwl":-15,"kxdrwu":15,"kxggl":-0.5236,"kxggu":0.5236,"kxwwe":64.534,"ldc":3.875,"ldcRate":-0.0125,"ldcStart":5,"ldcT0":10,"ldcT1":100,"nelec":376.991,"ng1":4,"ng2":4,"ng3":4,"ng4":4,"ng5":4,"s_fl":0.49,"samples":3501,"sar":0.252,"scpmax":0.05,"sfdmax":0.05,"sgr":0.27,"sidmax":0.05,"srpmax":0.05,"stopOnNaN":1,"tfl":650,"velec":4160,"ywgr":0,"soloTilt":1,"grFreeze":0},"nn33":{"na":4,"nb":6,"nl":0,"Pscale":[[1456.3872849759261,11.47414088130369],[1449.8814082977285,16.319912768353475],[2401.4297225983687,81.22631888966474],[1456.439921197137,10.360271798120042],[1449.985958654774,16.02274111658042],[2402.855371997705,67.76472293141167],[1456.4590627670063,9.462077707692712],[1450.0853726143328,15.81197854102669],[2404.004774007606,57.13212893004448],[1456.4671326616315,8.71402226846641],[1450.1963629699248,15.660668360177516],[2404.910142511017,48.6971507802953],[3.6480673786815156,0.5343953553690338],[2.9452157114613606,0.3291032092023494],[2.095747040390479,0.9353582802107102],[3.6521071433988457,0.5359865433153863],[2.9440908290837453,0.32268755994866033],[2.103694604160362,0.9326292093779688],[3.657679978294526,0.537342287463945],[2.9446927871290796,0.3140053271928365],[2.1089482335826153,0.9328346209610116],[3.6626554575501693,0.5386857894234616],[2.9450834346424757,0.30511604483692595],[2.1093567863756846,0.9270410877807541],[3.667329925337599,0.5398204763755421],[2.9467678914865547,0.2928356434265605],[2.120967241331055,0.9278184687384994],[3.6729885268666496,0.5395237276386513],[2.95007758340893,0.28161024214715136],[2.1269279585509806,0.9267650328874883]],"Yscale":[[1456.3119824101361,12.764235744171781],[1449.770504344414,16.697093873196966],[2399.8776528325047,98.03202579618917]],"W1":[[-3.786432677104688,0.5359357759766471,0.20855156677856448,-1.5089636224764218,4.451625240613756,2.0260650798989395,0.2806824567759351,2.9096959834204728,1.3824061537005599,0.27869485805555305,-0.5586741387625387,-3.0213596685707986,-2.229072843885025,-0.23525341816248355,-0.6129297570058667,-2.974485312706115,1.360299433832285,1.2598657340205537,2.2383672550817586,-1.403870405932564,2.511259395727372,-0.03031082360642581,1.912542329736329,-0.7102808728073656,0.787978244980965,0.9370599773879219,1.2019263678795558,2.7465761697605946,1.3720494587528689,-2.7191583451094004,-1.621356255887161],[0.9878393097094826,-1.6839478778800618,4.2048486631508375,-3.2673202320213557,-2.3266091728819682,-0.14551124229818274,-0.13318019564396485,-1.3884040314158759,-0.28361843727435343,3.0332013514270093,0.6534523624763453,-1.4068417728149978,3.2702685084801972,0.1689512621251603,2.260700339612878,2.0902187973610213,-2.1421756952059487,-0.28084528260946007,-0.5219974486561142,0.29079353020197574,0.31059280480461027,-0.2721767286182286,-1.2670825831483412,2.345599400111347,-3.2370901735971715,-1.6732554441583705,-0.7327521868123985,-4.303946240571571,-1.0556039287015628,1.7198904072521444,3.1397494328051443],[-2.9897666304948234,0.992347927544839,1.9327367249455953,5.357579648804047,-2.1984327687092704,-3.804818535966131,-2.5190981417810985,1.9238657235223129,2.220601403532853,0.0479614132608518,-0.7127138316232706,-0.3315224923491964,0.2598047963101375,0.04644138515993535,0.00953615566017197,0.8070459561226535,0.05568990552882383,0.8231631500181175,-0.40320299361981427,-0.06776111189776533,-0.7358575286566397,-0.4112022295276313,-0.045057049024373776,-0.13405268321292174,-0.07167915056501117,0.01407075195702329,0.030005275930792497,-0.13725642795631987,0.03480549036422155,0.016803775733359304,0.022748408149200424],[0.04453352314020342,1.1030087807178268,0.05010037811658631,-0.26331270960239683,-0.9590304951166778,0.03807283933373334,0.4335257539388218,-0.15441775739744812,-0.3262092691755562,-0.2775302068373661,0.09450861579168329,0.20170963659780278,-0.04885723459418664,0.013906789416299052,0.009095364497765242,0.0641309135228586,-0.04862084186868717,0.01008706115132925,-0.4859310063612254,0.03985751339038204,-0.02704142339220578,0.013194155094871143,0.0015844908402403376,-0.22287153464689502,-0.11297302786848212,-0.025737074276197754,0.006473813544484471,-0.039579588377782464,0.013091683606096733,-0.0014680264721601787,-0.8994849936034283],[-1.0697861399135562,1.9578879713171786,1.6322690215295708,0.2702179291552265,-1.813036062979101,-0.6643876572919278,1.184942704318093,-0.29295094790399834,-1.6768870339424202,-0.5524561344111434,0.28085803047578317,0.9268983292563779,0.27124673945801725,-0.010040065036533296,-0.020363758886783836,-3.0897233778970117,-0.012558845694022545,0.37582639204511725,1.01473360079826,0.05030557977938394,0.21346356856651202,0.5938898537972142,-0.04713462853186771,-0.4331533109942659,0.5163277980399972,-0.03153756094217308,-0.11853131353071285,0.3956477190068453,0.001683222560406388,-0.05091823510964174,-1.0237732700772095],[0.1785947272871939,-0.12499534236601877,0.21938407946725041,-1.1358771056416348,-0.40563327609970434,0.46440244139658765,1.3806807680725497,0.41689959047870406,-0.8901675615652672,-0.38125929175739626,0.001371701238915045,0.27591238457660583,-2.7296467211737845,-0.0367809299396624,-0.018489058087154488,0.7348024395989693,-0.02255302849789914,-0.05514531401656293,1.0101890094597548,0.04743060204647381,0.22219621523949892,0.23928156171682718,-0.01927758227130774,-0.07044914056716942,0.45730921559025756,0.031050492241833722,-0.06764206065274395,0.2996234780192061,0.014680362147810821,-0.02164445965249672,-0.769702857396047],[-0.34697149594285703,2.1502079406380354,-1.371130005320985,0.8781208184786468,0.7342677976282276,1.431866683587131,-0.7575966371418041,0.1344316771890405,-1.3819113216862506,0.34276349816216517,-3.4924304160692734,2.444519266900355,-2.765691899446259,-0.7204923507901781,-0.03186087711376474,0.4891060102602957,-0.11319443213575338,0.1838561350703184,3.496412599603068,0.28253267796650916,-1.3912255847819548,-0.563378764491605,0.6080516526470221,-0.8481559295223281,0.9977610136581208,-0.4350915841082014,-0.4799571101209314,0.14726909178204522,-0.2204016325682251,-0.1944059341672227,0.4652914782916743],[-0.9115891281339735,2.145549277875979,0.8255020821539928,0.015368349293052872,0.26489435345095336,0.08297327321292779,-0.01847213918402507,-2.331901391994351,-1.4640743980889894,0.4375834069663555,0.2144458620963601,0.8100985075024633,-0.06420572051146264,-0.10361707211791353,-0.052441642557487574,-0.5156509821773295,-0.029830505196633283,0.3298894578866645,-0.8224503383848318,0.026393325467231853,0.1486779514749123,0.9803551652030849,-0.002037768889376306,-0.158786374566617,0.35459687697179937,0.0022887441224056244,0.017380976461040313,0.05894692439476036,-0.01492260096850882,-0.062126084653552925,-0.018849384855182713]],"Th":[[-0.034523996306289016,-0.03700382485582241,-2.140163715108343,0.5676454404387871,0.2601957863139291,-0.2974027696952275,-0.03901099485745807,-1.2615290647037163,-5.551351592867254,2.811364114215024,5.264788106827384,12.46936313853428,-2.725907315164737,-9.83670142958994,-8.202221033747696,1.5119419821524114,5.40366336745793,1.712500080253608,-1.4251624030853927,-0.567692470805748,0.6814575088272451,-0.04257927495730253,0.13094770506226508,1.371663894050324,0.11974834030129233,2.0697477578136785,-2.3057362062585476,-0.17220289025365876,-2.139988021016535,0.5397175467953889,-0.07857939125853057,-0.0653454385359284,0.3485617874767747,0.056137572584601544,0.21172294892385532,-0.20558289225863463,0.05017945281575545,-0.03280171833155718,0.374262527948807],[0.01205179274731095,0.013340451081139808,0.7844557962678953,-0.05020959362390222,0.08901425763237038,-0.03397729287969861,0.013668615089603833,0.6495168025664891,3.590314660201483,-0.5911149220759433,-2.5119516169831138,-5.203059411808748,0.9668129662890488,3.6791776185762988,2.3972813378048037,0.011665023690057367,-1.1655231912161566,-0.35789387928713495,0.3964784126422791,-0.21404958169509802,0.201709506495197,0.046720012486092144,0.054788973233241424,-0.6536489343821372,-0.04651777811517394,-1.0286594090744214,0.8466550893277249,0.04603199672276819,0.5878074004167534,-0.3082535955601725,0.03690617056995693,0.23423366202860169,-0.18043849976157672,-0.009560002057183757,-0.02987921335518544,0.05797616673725509,-0.017190838676281486,0.031746345176874496,0.0018396177252875822],[-0.03728341750401409,-0.03972357633271826,-2.2875520738796093,0.5647024654173893,0.22802269639916595,-0.32309539505591534,-0.04416003968361587,-1.3678594291643518,-8.053875094720855,3.3104632712194086,7.419209478156667,14.291153953884773,-3.2409328990298363,-11.20986180085766,-8.553761941742096,1.656418040766611,5.582008882855993,1.6947762820503813,-1.5274568746410209,-0.5175414040966213,0.4027594327673394,-0.07983371551823018,-0.1676210569670795,1.7031908991360716,0.13844699835672145,2.517055657136518,-2.371943181125044,-0.16782264346453438,-2.1712103188269363,0.5272685970579123,-0.08570998556926569,-0.14354626394500883,0.37925478116969275,0.057783581556333695,0.1994996103779444,-0.20491795514373992,0.05372568539893247,-0.043010601937690164,0.3407207924966118]]},"nn34":{"na":5,"nb":8,"nl":4,"Pscale":[[1456.3872849759261,11.47414088130369],[1449.8814082977285,16.319912768353475],[2401.4297225983687,81.22631888966474],[1456.439921197137,10.360271798120042],[1449.985958654774,16.02274111658042],[2402.855371997705,67.76472293141167],[1456.4590627670063,9.462077707692712],[1450.0853726143328,15.81197854102669],[2404.004774007606,57.13212893004448],[1456.4671326616315,8.71402226846641],[1450.1963629699248,15.660668360177516],[2404.910142511017,48.6971507802953],[1456.4614729120835,8.094961138730957],[1450.3080569488177,15.537195927270705],[2405.8985412275106,42.03100498455758],[3.6480673786815156,0.5343953553690338],[2.9452157114613606,0.3291032092023494],[2.095747040390479,0.9353582802107102],[3.6521071433988457,0.5359865433153863],[2.9440908290837453,0.32268755994866033],[2.103694604160362,0.9326292093779688],[3.657679978294526,0.537342287463945],[2.9446927871290796,0.3140053271928365],[2.1089482335826153,0.9328346209610116],[3.6626554575501693,0.5386857894234616],[2.9450834346424757,0.30511604483692595],[2.1093567863756846,0.9270410877807541],[3.667329925337599,0.5398204763755421],[2.9467678914865547,0.2928356434265605],[2.120967241331055,0.9278184687384994],[3.6729885268666496,0.5395237276386513],[2.95007758340893,0.28161024214715136],[2.1269279585509806,0.9267650328874883],[3.6778653913987207,0.5381582064988616],[2.952867118613192,0.27173197693518913],[2.1287763249698917,0.9221597055187878],[3.6820098780404367,0.5368223467250831],[2.9549885180403113,0.2627422999839323],[2.131498436728368,0.917936565924246],[72.0745297641403,15.757000767579541],[72.16924616824016,15.8119355431984],[72.28070565473124,15.869264889997101],[72.41361261598801,15.926642708255555]],"Yscale":[[1456.3119824101361,12.764235744171781],[1449.770504344414,16.697093873196966],[2399.8776528325047,98.03202579618917]],"W1":[[0.19755894887497988,0.3916112836196774,-0.42883838510409084,-0.2024819014276711,-0.8475138025767257,0.4673472587332678,-0.3488777641752986,0.39448644883747713,0.06080317012563182,0.6353552159582062,0.07096086584195532,-0.3177125372084397,-0.2624630850152904,-0.005792390729820869,0.14129600765137507,3.1832358995955667,0.0018613924166056845,-0.0008964801963570419,-1.2386325906714521,-0.021854953783168964,-0.10028736651557747,-0.33912405705228915,0.008517735260980121,0.03496724483602907,-0.035744158077306645,0.025657738450313484,0.146401457133594,-0.5264725410719581,-0.009674262159003633,-0.06965780291035366,-0.21617992410424494,-0.0038826303423947633,-0.041822737318141366,-0.16177158090194851,-0.006200735353741069,-0.016024738029772768,-0.24006670768151456,-0.003005803555572481,-0.011641765970604137,-0.2512969566448599,-0.21750718528330384,0.4291411582534432,-0.3110448215493476,-1.1291829098377197],[0.4264353013300395,-0.5871411162705427,0.030002573192504774,-0.038457440720684896,0.4565112050788246,-0.21120961321077653,-0.3394698557672276,0.0320506356760116,0.295763908277656,0.0011210149147233145,0.10581440710143912,-0.03523970156107652,0.08794493492941872,-0.11804160304741802,-0.032875404172295786,-0.08097481437982766,0.0023530109337992714,-0.028916565459512832,-0.036496597272561195,-0.0007129263346071368,-0.086823549865484,-0.059266611597713695,-0.0013170569005747008,-0.12112442774021363,0.037870706069408074,-0.0018249694205307837,0.016891183281140986,0.07271272700701219,0.002160180722924951,0.04499296856456421,0.03231942429753535,-0.001215659815194114,-0.02017835321362803,-0.012287834788038894,0.0004509085038050297,-0.00922216669447766,-0.002639901863624399,-0.0024722773379308753,-0.0011525731800029143,-0.22614616393328646,0.3718959861223444,-0.09612888765502829,-0.5076054130023913,1.4582560291744069],[-0.3137807983808796,0.32937854207955236,0.24718606649449898,0.07614942846069632,-0.2606622795043248,-0.0035349196351892437,0.1274738421682197,0.07436460596304781,-0.12190076599863423,-0.13314276227815558,-0.1457684596904643,0.0256800107976019,0.14247952322888094,0.03223255474398422,-0.060053713409984034,0.17035445002496813,-0.02915578617868505,-0.0038821931275870034,-0.10405516288239543,-0.0042285152083222505,0.10734517811783924,0.042396166176720054,0.021136437531782345,0.06951598326540608,-0.037791778056826555,0.0022730276867447235,-0.0026306101700422344,0.10896149068382945,-0.000301644477584456,0.04259258320048021,0.01050838425151705,0.004215555964602079,0.01172315502367796,0.020681698834859902,-0.005477269164492652,-0.015343815170285222,0.04083402986719596,0.003831629542868952,-0.0002956027329303121,-0.07655284181244305,0.04060511946357488,0.08618068450610644,0.010313389676721983,0.8135984341417283],[-0.9058107246973691,-0.26437721034209155,0.05003462832067775,-1.0025263500232693,-0.016803049141491565,-0.3286340017906107,0.6329818955583906,0.4138584577518959,1.1186097872658018,0.9527071533325677,0.4962933896090192,0.7869388263902961,-0.15365078333370732,0.31626520136350816,-1.0002958275463352,-1.0327783203687346,-0.001585232099248563,-0.16471943827042013,0.1357609859170383,-0.15513254738518506,0.08721739748615143,-0.9796781364183439,0.5511072370592256,0.38481437935235624,-0.614542903551117,0.664140173393057,0.07874288475846114,-0.056698983393772585,0.1304584071910683,-0.02113753239973333,-0.30012441442927323,-0.2716707518797184,-0.13672511256852596,0.38693219502586196,0.28230137540859734,0.18901596679831997,0.19336058492968872,-0.10197538939102478,0.6227813564152567,0.18861140861511355,0.657752092417263,0.4315126649047909,0.1674007316013205,-0.2425196218953423],[0.18494041239031053,0.31022490900599914,0.9448783470765469,-0.49007337390091116,-0.2904206074417902,-0.010347922728485929,0.42344006130898376,0.05958047711252377,-0.3438910525450011,-0.31308309132310874,0.38671500282765725,0.20512850789099527,0.14505577102887976,-0.33393450453061246,-0.08719684961914671,0.06123210515688299,0.006462941010270536,-0.09653477958846997,-0.2744333388122046,-0.015835148532402466,-0.04194131997986218,0.1530652514565914,0.03482825210168195,0.07042157182600275,0.06801020019883101,-0.01059003778626526,-0.08392888538575934,0.08503022476597205,-0.004614105207836,0.025840839013779683,0.07631224873959408,0.0024198102186857823,-0.0495966361459898,0.021245295463533185,0.001669035442758731,-0.018641340001009955,0.0176473740704876,0.0020715630619647773,-0.007291300091414272,-2.474472101014803,-1.0642376949349768,1.554850747091002,-1.3099132289351414,6.599437489596463],[0.12386342822685313,-0.07983258304140099,0.14239675456752846,-0.04659820021241541,-0.178551434036242,-0.0355346108776908,0.0167191540394104,0.26058389114488756,-0.0817178501111397,-0.095968691141978,-0.026796906177002044,0.057780402883682774,0.060075771604407566,-0.03418168219524926,-0.025824262114211953,0.04427034956199496,-0.007630371549629556,-0.0251767886603447,-0.12213724020384514,-0.010352478242899584,0.025651705612790295,0.019592443315541132,0.010617841768027587,0.028740552936781266,-0.052477281661791816,0.0006931923530432644,-0.002381266115435702,-0.013952218515224815,0.003508437838226593,0.029985256155564285,-0.0005415312232110607,0.0013527124437264836,0.0012756824203089634,-0.006421039740104576,-0.0025024960279018196,-0.005907321763365432,0.009447978360724904,-0.0005814787128430109,0.0029387975056578415,-0.3308261831241282,0.9839884759446226,0.40171190979338267,-0.5912086202453414,0.5319590353080883],[-0.23180976972865625,1.1033199571080994,0.06303660165538537,-0.12293740143894576,-0.17605761018125415,0.3278678371055358,-0.2774677862995352,-0.6129507889401935,0.15834376802147138,-0.20510492258788712,-0.28374007269611234,0.23702705339344177,0.5812018901803159,0.19104467887276988,-0.5705814026126748,0.22965235646038715,-0.003598995066128163,-0.012366405128514562,-0.2924323588060287,0.007788598436904251,-0.039258588795309274,-0.5109863369919337,-0.05489904113283889,0.13627551264001544,-0.2658711267521493,0.008652396468581887,0.18830859170130784,-2.7020675737445785,0.07397344933596298,0.30402843745242525,1.140834303632855,0.0030108080887707774,-0.03621293202408737,0.4146840532147041,-0.011027701334490842,-0.13528485163604606,0.278307020198383,0.010050613892955017,-0.07454559352592285,-0.08709542110621996,-1.4459264371103957,1.2446030280973006,1.7037323411304268,-0.7059959325852763],[1.1034475918188895,-1.6963720325374938,-0.1667074513697021,-0.18497356609976817,1.487437295191518,-0.29294775623505587,-0.7835501845755156,-0.1513753169265762,0.6937565266735057,0.21709396264263212,0.10874441712776947,-0.20894349193452624,0.03854327626676412,-0.10355018392261757,0.005782370730555986,-0.16279921334427272,-0.00454490333570511,-0.037993617955497216,-0.038669932774358845,0.002001906447589067,-0.2427126934047439,-0.21085051518316922,-0.01423243056213924,-0.264616336941047,0.07216543886083868,-0.002314153022729271,0.06666509956461368,0.09644226513266624,-0.0032357587839058795,0.043524210068257456,0.028329518633141797,-0.003773105978741413,-0.034528812556577804,-0.025520446932018943,-0.0018202813841908143,-0.004947603298169112,0.01948574552022905,-0.0024138602892727094,0.012814433107095586,0.022621331356213574,1.2724270033889935,-0.7597937004715719,-0.5939733745517521,1.1572218712940503]],"Th":[[-0.24398807206132048,3.2634998682610226,-0.7736081681650617,0.010998395731830278,-0.7580513618528967,0.9450181576691391,0.0850312117601904,-1.202361227933122,0.40600934714208237,0.5474429162631788,0.38904013976854174,0.043614681081395455,-0.3475449011853688,-0.07238848789552534,0.30642652850945,-0.2675066165712594,-0.20822285048402914,0.22068209126878302,0.21705612774094832,-0.0884958661266636,-0.261072228337785,-0.018626109547468257,0.0548774099018176,1.121383639341185,-0.011443002618220953,0.19717158602204704,-0.05072073088884974,0.0024150006409070154,0.18527392830828665,0.09964789568986444,0.013896275767719611,0.0711571379490283,0.08501812026692994,0.003098158215707859,-0.03174372678735537,-0.09121962786919191,-0.012150924084063278,-0.12396353258243417,-0.09911940904815639,0.0032115292482650963,-0.03314565496645945,-0.009068438017984997,-0.0033282003582295943,0.0004815970481310022,-0.007163750985253009,0.003826201350713527,0.0008370620164317754,-0.7762056543975733,-0.9701779684590677,0.24335058020448455,0.46548210132232287,-1.1435029403737924],[-0.04480150412182848,-0.938982812611309,0.9517149280075178,-0.003992260949442408,0.20456184221285215,-1.6235557493465973,0.0027066450679123786,0.2549196159809494,1.4202949296744622,0.2966092921355268,-0.779393343109332,-0.7208663962099199,0.30272198336729167,0.44153243985234875,-0.46938012828607767,0.2978743799665734,0.2927022362934331,-0.1474693858475761,0.015836320809205006,0.10603192498591846,0.23352204733703322,-0.10771223534842339,-0.14914898734654744,0.4223472485535423,0.026462610655328286,-0.0054279663320686376,-0.30958716674245673,-0.02774084064395602,-0.31202611846210015,-0.19958775034320672,-0.014628362195546628,-0.1472550093102722,-0.05399095161665892,0.001222416713925106,0.08130693203769628,0.024497520788998903,0.014225873898717198,0.16366421780385448,0.012296255863464467,0.0007645377037842572,0.02938616403719416,-0.01607833923107607,0.000668617319412645,0.003837321786117473,-0.0032231711007649315,-0.004267296577162287,0.004921104406376452,0.2703361855373231,0.5594930966670826,0.09810159624857752,-0.5566661664805517,0.49088568547884504],[-0.27113194846302213,3.497362549575136,-1.6113310382763617,0.014298230421927368,-0.768614298741737,1.1791726419458148,0.12120540428741648,-1.2739329663981727,-1.460006712332664,0.831432047899092,2.080517957021147,0.7303026271261167,-0.6672712157978588,-0.6465974891753009,0.5880047745661546,-0.3147172331096566,-0.40290921520869244,0.16471654383543274,0.23809450931000498,-0.03978150881855614,-0.2842600110039647,0.002693045330144036,0.05692984429465177,0.9576145870088186,-0.05636128288680568,-0.09249490210873265,0.06814316498373967,0.009826308071131214,0.4489994846846255,0.22947376118651924,0.03534585280547546,0.19623516911688235,0.09202365304780251,0.0018522683034247502,-0.08003463618934731,-0.05351472154400979,-0.017194610132740394,-0.1586698928186044,-0.13836759096190873,0.005486845835219849,-0.04112356376520024,-0.010500766155676496,-0.006345873964680446,-0.006156981301816875,0.006788838410489553,0.0061781561168476,-0.00026895989586584097,-0.7956432284408604,-0.8299511006617171,0.074142544554207,0.5782211299404946,-0.8655836102126189]]},"ss":{"50":{"x0":[450.14766450185425,417.47992274200897,631.22700535142,1170.406971089703,7.596567832777129,187.0674298140029,1140.0875460191332,3.9628981165466484,1337.6499360334992,3.2104008875168715,1446.387400805764,1.2297823732665012,0.321490922959787,1502.3878724188605,0.12119865970650952,376.991000000074,186.8010091735388,158.35900778810696,6817.2908148518745,0.05507560479229173,62.65439838981033,93.96158684712162,2.903690482719811,2.383093833598443,2.9036628041144987,2.6432494524140564,3.950296321156317,3.167283344811473,-0.006174247950103875,2.465594542169038,0.03405848497520865,2.6780954629639915,2.7171085618290465,1.932933197052681,2.383132670136051,2.903704027799062,2.643279580590647,3.9502963211562725,3.1672969631751613,2.465628539916761,2.6780082085234533,2.7159744739572034,1.9331624158899232,-0.13667625656396276,2.363324242100572,2.3633241873273745,0.2526801979919587],"y":[1440.083106828872,1411.3324481623424,2414.998399643853],"u":[2.903732946564171,2.715879590767642,1.9331815865514637],"ldc":2.5},"55":{"x0":[454.546830942824,420.0426948837128,640.4743584617065,1170.4071184690513,7.675390994694593,187.072909827068,1141.212493598074,3.9763716475466326,1337.035350408888,3.177637035293926,1452.5309210396617,1.3292007206692633,0.34774357894901936,1511.4285154249433,0.13169197449425338,376.9910000001183,186.77000675488327,159.8885769515852,6817.290331885191,0.05672065349013914,62.620262552513914,93.88653098556816,3.078744102159935,2.5650564589240576,3.078689077476337,2.8699498471043783,4.036995990085693,3.2203805295893497,-0.005300758042212114,2.5977253799540416,0.034930424455093784,2.840115665650978,2.891521560997916,1.7288425897340551,2.5651361912733446,3.078768468108354,2.8700117065343616,4.0369959900857815,3.220407387738681,2.5977837925572094,2.8398951118974645,2.889503699676527,1.729282280447468,-0.17104319882673794,2.5789577209281664,2.578957619735702,0.27858959621664364],"y":[1448.8253328854903,1430.0943916400026,2414.9969150154675],"u":[3.0788259591287543,2.8893341422641527,1.729319196622615],"ldc":2.75},"60":{"x0":[460.6827450806072,441.9079809965903,662.5277189206345,1170.406337087236,7.760460130876245,187.07880095195745,1142.2743117284913,4.00276398701206,1334.908667226629,3.146046723668957,1458.5702505447805,1.4264915429871807,0.3732854564025397,1520.3468315902264,0.14194593009934012,376.99099999993945,186.8052659368885,181.4662489186977,6817.291274922737,0.08578015210379246,62.5851353737745,93.80120943476855,3.2377767200780534,2.740375611353372,3.237784307503852,3.1056154015115207,4.218297785177204,3.256031500271586,-0.004550414327481722,2.7366999505901757,0.00712665484021594,2.7059355649512806,3.0336614256940404,1.5339687332212733,2.740347835520889,3.2377595375242025,3.1055935955386684,4.218297785177293,3.256023376799369,2.7366772819026774,2.7059893705298568,3.0342927631270653,1.5338203058912443,-0.2062231399409236,2.7937764982681137,2.793776537957138,0.30469269609481386],"y":[1457.4653217218033,1448.5420637081183,2415.0009844238393],"u":[3.237750599379438,3.0343449221741055,1.533808040745512],"ldc":3},"65":{"x0":[466.46245930519297,445.4140691933152,668.8921461728171,1170.406792303599,7.859482530893375,187.0856281143794,1143.5755901944901,4.040697145298864,1331.5413332832748,3.1381059806441285,1460.1057143834644,1.5381532100542223,0.4019659623737946,1525.412876463502,0.15360969182445283,376.99100000051766,186.77783171541168,183.23406625483284,6817.290928289436,0.08939259817150289,62.540811988237614,93.69934857441747,3.414766878089236,2.9473140278889747,3.4147545090881235,3.3680128188771983,4.315570430683605,3.322837034191455,-0.0035613837285761746,2.881360656021753,0.005788330042900226,2.8569241444389863,2.9888833662666925,1.327630676950621,2.9473338286753217,3.4147717700455096,3.3680283014691086,4.3155704306835165,3.322842926564252,2.8813764970614186,2.856888704918893,2.988495059827686,1.327728065219171,-0.23238397972666514,3.0176162992521833,3.017616272710932,0.3310116958396461],"y":[1459.6689562998802,1459.6784120092657,2414.9993259034272],"u":[3.414784764563164,2.9884627658034124,1.327735046962614],"ldc":3.25},"70":{"x0":[473.82951940860966,445.8595597236332,661.9867992612569,1170.4067130436376,7.996216076432099,187.09500204719987,1145.4075971702648,4.143361917108159,1320.8347570979217,3.1381054369694255,1460.105817604947,1.6670757357274006,0.4361246545504347,1524.5636338594952,0.16758875481235655,376.9910000000556,186.7473536648048,184.80495892945297,6817.291008329098,0.09287199845312553,62.49281031484981,93.60465193644706,3.5835811772088,3.156875105077965,3.5835734834629087,3.5951266699922235,4.20818832537014,3.4322245869007166,-0.0022931387075252815,3.0762722251808463,0.005051974347421596,3.032908487807175,2.6694961887046067,1.4666460510253303,3.1568943958761557,3.58358576526873,3.5951385281433352,4.208188325370052,3.4322285101485592,3.0762851864295158,3.0328863301907467,2.6692454358975635,1.4667280662234154,-0.23227546632202678,3.2677250498892723,3.267724990514406,0.357571042321154],"y":[1459.6691041752683,1459.67541275112,2414.9993173202856],"u":[3.5835992914298225,2.6692255511486143,1.466735633498503],"ldc":3.5},"75":{"x0":[481.8860482018657,448.6047680647135,654.421618385641,1170.406655721154,8.144805002203176,187.105118889443,1147.279698698496,4.212896812781372,1314.52120985052,3.1381043082200266,1460.1060765248537,1.7998584366610229,0.4711448244066293,1523.6902599406976,0.18171863399899582,376.991000000928,186.71676613036163,186.54694212121282,6817.291036245188,0.09681928757811507,62.44146885627261,93.52990206142937,3.7434153495729423,3.3668103158732205,3.74341040867501,3.7624224277787865,3.8202,3.539370002018079,-0.0010695325644212964,3.267156292755825,0.0041842505130086395,3.221687883899785,3.2505095392048853,1.4854740810076716,3.366826369248469,3.7434193634765403,3.7624318656581894,3.8202,3.5393723244087565,3.2671645336107704,3.2216756305150476,3.250383416882744,1.4855230593509685,-0.2246793205749119,3.5253209987733345,3.5253209693854686,0.3843967370576323],"y":[1459.6694826895402,1459.6727351949983,2414.999474642288],"u":[3.7434292894086068,3.2503727794549784,1.4855258120536563],"ldc":3.75},"80":{"x0":[491.1354817078102,451.07726147504826,648.8349969405548,1170.4066287050632,8.325566628403946,187.11732855439772,1149.4018734373249,4.333472914872724,1303.0278033772847,3.1381038022161274,1460.1062686705786,1.9373225101051832,0.5071778165171619,1522.7890550198795,0.19603050899267044,376.9910000000201,186.6859867991245,188.504266767683,6817.291068756554,0.10134411302971752,62.3803104060567,93.41906882069512,3.9115810682087635,3.600407514765536,3.911579329505175,3.9911738749688124,3.640190800571043,3.6464376805502825,0.0003011510768058873,3.4874922110179676,0.0031582284398511988,3.4263599027818885,3.056752479974373,1.7761765690077789,3.6004122014122877,3.9115819732053647,3.9911765380137387,3.6401908005709984,3.646438683569411,3.4874959534501366,3.426355945230043,3.0567062865925076,1.7761973444408512,-0.20800383824125512,3.7919963181276874,3.7919963002811894,0.41151682709095827],"y":[1459.6697742910656,1459.6709944617594,2414.9998437993345],"u":[3.9115852128366035,3.056702756886406,1.776199139901231],"ldc":4},"85":{"x0":[501.5492247415562,454.668595716837,644.1974302241905,1170.4066166203243,8.537942010263162,187.13153717513396,1151.7086839689775,4.473561753798657,1290.3454619012707,3.1381032179910138,1460.1064239376183,2.08043152033267,0.5443954177774797,1521.8552877521938,0.21056106075767458,376.9910000000028,186.6549779925107,190.7335192884769,6817.291085591761,0.1065348866989947,62.31018020032262,93.29139823915085,4.0805880757209225,3.8490148725430804,4.080588135295733,4.23203023398865,3.463307694373502,3.7536845049035237,0.0017126706591492054,3.7277583723717647,0.001922154356667043,3.6506897914785315,2.7995565788238794,2.205010883631261,3.8490145486255734,4.080587922941803,4.232030003035747,3.4633076943734578,3.753684450465044,3.7277585831271884,3.6506915318160957,2.799559800068,2.205010509617376,-0.18037885679321022,4.069621144349242,4.069621144244253,0.4389618854722694],"y":[1459.6700042660493,1459.6699295927776,2415.0000086573777],"u":[4.0805878460060665,2.799560099185002,2.205010457026341],"ldc":4.25},"90":{"x0":[513.1767704722005,460.1144043352707,640.0614590687352,1170.4068961031119,8.784121086651423,187.14782386583403,1154.1600832906088,4.618249358173595,1278.196745309722,3.1381049030962127,1460.1061204252683,2.2303944113061496,0.5830082557891039,1520.8845347940935,0.2253504684380266,376.9909999983409,186.62369755043477,193.28769437469302,6817.291002154036,0.11252895571292185,62.23146603517202,93.16259320309483,4.245961974626057,4.106485008224101,4.2459576039491,4.451213337848173,3.1711315411214693,3.8615665637789616,0.0030944860419549456,3.983883100295002,0.0004033559132996759,3.8999635237653973,2.8702106272202603,2.7000514723263094,4.106481609851944,4.24595873182536,4.451213132562372,3.171131541121425,3.8615679403144014,3.9838904135364177,3.899956584266101,2.87012208901008,2.7000882733418425,-0.13946234548241143,4.360537777006464,4.360537748374033,0.4667653220290766],"y":[1459.6695722446846,1459.6718815832917,2415.000099718118],"u":[4.2459593287132185,2.870116548055677,2.700094247857862],"ldc":4.5},"95":{"x0":[526.3266719324301,467.18471239590593,636.8991946264622,1170.406573345549,9.078402102019972,187.16703583549233,1156.8074205287214,4.787297683903675,1264.8214489790494,3.1381038783309014,1460.1062393230447,2.3888034931815922,0.6232929399346194,1519.8661913321203,0.2404465347253619,376.99100000040846,186.59209222870507,196.21875402963536,6817.291047326941,0.11949630282518646,62.14118075538275,93.02039563784766,4.410140075164466,4.376874571324104,4.410138213304136,4.6688886209085,2.8434323392490017,3.971608373305943,0.00439185180966164,4.26707749903683,-0.001439012326913358,4.181732331853185,2.9991897794816462,3.3678340946578884,4.376881778248983,4.4101413189092185,4.668892225187388,2.8434323392489573,3.9716097451232377,4.26708308365055,4.181728449531877,2.9991544264152794,3.367859607118834,-0.08215844612328943,4.6678417734942,4.667841751351426,0.4949640043363881],"y":[1459.6697297153005,1459.6707640402728,2414.999786525279],"u":[4.410145739500201,2.999151577468005,3.3678611231278484],"ldc":4.75},"100":{"x0":[541.3095124557759,476.1575448706746,634.8310188489816,1170.40656790842,9.436894430714377,187.19006413978,1159.657854128761,4.988476761766349,1249.9341379774048,3.1381034243637256,1460.106374186861,2.5577587851149906,0.665599400701234,1518.7927106864802,0.2559052698969535,376.99099999998674,186.56010482010421,199.5839894848828,6817.291064170207,0.12767229488593315,62.037241714659494,92.86522183660543,4.571926055330555,4.658778259226282,4.571925709619386,4.879871240302996,2.4688,4.085323819268588,0.005510437654247691,4.584674448599229,-0.003714760710613852,4.507330613279849,3.2232304883644534,4.258281279389881,4.658779182568043,4.57192617360229,4.879871692125848,2.4688,4.085324243144176,4.584676012693578,4.5073295617429165,3.223223471358996,4.258287656396479,-0.004397186683490056,4.995602868835446,4.995602862470297,0.5235987684551788],"y":[1459.669931196217,1459.6701499674316,2414.99997042708],"u":[4.571926840018377,3.2232229899928764,4.258288159768188],"ldc":5},"77.5":{"x0":[486.4570591405459,449.23624585276497,651.9705430201952,1170.4066565332146,8.23509611999482,187.11123104342334,1148.3576151040586,4.286022581754979,1307.2566001589835,3.1381042785403848,1460.1061488734426,1.8679560995595166,0.4890263485359098,1523.2434646184097,0.18884906813823413,376.99099999991165,186.70139663486088,187.49265475647178,6817.291057856838,0.0990117939518413,62.410755537774314,93.4651640809601,3.8305780156029763,3.4862174605418703,3.83057486038311,3.898749792910183,3.8202,3.593242147102455,-0.0003525990987468824,3.3810545506307097,0.003696238945347911,3.321881373780539,2.857297207150704,1.6878652867965758,3.486225196702346,3.8305794976745626,3.89875433235043,3.8202,3.5932439158791425,3.381060941104558,3.3218736120189516,2.857206923610728,1.6879020721706075,-0.21757230794897425,3.6574279570712442,3.6574279258085127,0.39791812986062397],"y":[1459.6695976776577,1459.671943147764,2414.9997360567986],"u":[3.8305850190713966,2.857200049762507,1.6879055190308088],"ldc":3.875}}};
+
+</script>
+<script>
+// nn.js — Control por linealizacion instantanea con un modelo NNARX (sin RLS)
+// sobre el modelo de 47 estados de Usoro (1977).
+//
+// Traduccion directa del codigo MATLAB de stc-neuronal: SN_EVALUA, SN_GANANCIA,
+// LI_INIT, LI_LEY y LI_LAZO (que es AMIN_LAZO con LI_LEY), mas AMIN_RAMPA.
+// La planta (digpte47 y sus funciones) esta en digpte47.js y funciones.js.
+
+'use strict';
+
+// ------------------------------------------------------------ algebra
+function zeros(n) { return new Array(n).fill(0); }
+function solve(A, b) { // eliminacion gaussiana con pivoteo parcial (n pequeno)
+  const n = b.length, M = A.map((r, i) => r.slice().concat([b[i]]));
+  for (let c = 0; c < n; c++) {
+    let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    [M[c], M[p]] = [M[p], M[c]];
+    for (let r = c + 1; r < n; r++) { const f = M[r][c] / M[c][c]; for (let k = c; k <= n; k++) M[r][k] -= f * M[c][k]; }
+  }
+  const x = zeros(n);
+  for (let r = n - 1; r >= 0; r--) { let s = M[r][n]; for (let k = r + 1; k < n; k++) s -= M[r][k] * x[k]; x[r] = s / M[r][r]; }
+  return x;
+}
+function transp(A) { return A[0].map((_, j) => A.map(r => r[j])); }
+function jacobiEig(S) {
+  const n = S.length, A = S.map(r => r.slice());
+  for (let sw = 0; sw < 60; sw++) {
+    let off = 0; for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) off += A[i][j] * A[i][j];
+    if (off < 1e-30) break;
+    for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) {
+      if (Math.abs(A[p][q]) < 1e-300) continue;
+      const th = (A[q][q] - A[p][p]) / (2 * A[p][q]);
+      const t = Math.sign(th || 1) / (Math.abs(th) + Math.sqrt(th * th + 1)), c = 1 / Math.sqrt(t * t + 1), s = t * c;
+      for (let k = 0; k < n; k++) { const akp = A[k][p], akq = A[k][q]; A[k][p] = c * akp - s * akq; A[k][q] = s * akp + c * akq; }
+      for (let k = 0; k < n; k++) { const apk = A[p][k], aqk = A[q][k]; A[p][k] = c * apk - s * aqk; A[q][k] = s * apk + c * aqk; }
+    }
+  }
+  return A.map((r, i) => r[i]);
+}
+function cond2(A) {
+  const At = transp(A), G = At.map(r => A[0].map((_, j) => r.reduce((s, v, k) => s + v * A[k][j], 0)));
+  const ev = jacobiEig(G); const mx = Math.max(...ev), mn = Math.min(...ev);
+  return mn <= 0 ? Infinity : Math.sqrt(mx / mn);
+}
+
+// ------------------------------------------------------------ NNARX (SN_EVALUA, SN_GANANCIA)
+// M: {na, nb, nl, Pscale [l][2], Yscale [3][2], W1 [H][l+1], Th [3][H+l+1]}
+function nnEvalua(M, phi) {
+  const l = phi.length, H = M.W1.length;
+  const ps = phi.map((v, k) => (v - M.Pscale[k][0]) / M.Pscale[k][1]);
+  const h = zeros(H);
+  for (let j = 0; j < H; j++) { let s = M.W1[j][l]; for (let k = 0; k < l; k++) s += M.W1[j][k] * ps[k]; h[j] = Math.tanh(s); }
+  const y = zeros(3);
+  for (let i = 0; i < 3; i++) {
+    const T = M.Th[i]; let s = T[H + l];
+    for (let j = 0; j < H; j++) s += T[j] * h[j];
+    for (let k = 0; k < l; k++) s += T[H + k] * ps[k];
+    y[i] = s * M.Yscale[i][1] + M.Yscale[i][0];
+  }
+  return { y, h };
+}
+function nnGanancia(M, phi) { // B0 = dy(t+1)/du(t) en el regresor phi (analitica)
+  const H = M.W1.length, iu = [3 * M.na, 3 * M.na + 1, 3 * M.na + 2];
+  const { h } = nnEvalua(M, phi);
+  const B = [zeros(3), zeros(3), zeros(3)];
+  for (let i = 0; i < 3; i++) for (let jj = 0; jj < 3; jj++) {
+    const c = iu[jj]; let s = M.Th[i][H + c];
+    for (let j = 0; j < H; j++) s += M.Th[i][j] * (1 - h[j] * h[j]) * M.W1[j][c];
+    B[i][jj] = M.Yscale[i][1] * s / M.Pscale[c][1];
+  }
+  return B;
+}
+
+// ------------------------------------------------------------ controlador (LI_INIT, LI_LEY)
+function liInit(M, variante, o, uss) {
+  return { M, variante, lambda: o.lambda, Tc: 20, Umin: 1, Umax: 5, uss, ldcFut: o.ldcFut,
+           Yh: null, Uh: null, Lh: null, nc: 0, tNow: 0,
+           log: { condB0: [], sat: [], d: [] } };
+}
+function interpUss(T, ldc) {
+  const l = Math.min(Math.max(ldc, T.ldc[0]), T.ldc[T.ldc.length - 1]);
+  let k = 0; while (k < T.ldc.length - 2 && l > T.ldc[k + 1]) k++;
+  const a = (l - T.ldc[k]) / (T.ldc[k + 1] - T.ldc[k]);
+  return [0, 1, 2].map(i => T.U[k][i] + a * (T.U[k + 1][i] - T.U[k][i]));
+}
+function liLey(S, y, w, uPI, ldc) {
+  const M = S.M, na = M.na, nb = M.nb, nl = M.nl;
+  const Lt = ldc / 0.05;
+  if (S.Yh === null) {
+    S.Yh = []; for (let m = 0; m <= na; m++) S.Yh.push(y.slice());        // Yh[m] = y(t-m) tras el desplazamiento
+    S.Uh = []; for (let m = 0; m < nb; m++) S.Uh.push(uPI.slice());       // Uh[m] = u(t-1-m)
+    S.Lh = []; for (let m = 0; m < Math.max(nl, 1); m++) S.Lh.push(Lt);   // Lh[m] = L(t-m)
+  }
+  S.Yh.unshift(y.slice()); S.Yh.pop();
+  S.Lh.unshift(Lt); S.Lh.pop();
+  S.nc += 1;
+  let Lfut = null;
+  if (nl > 0) Lfut = S.ldcFut(S.tNow + S.Tc) / 0.05;
+  // error a un paso de y(t)
+  const phi = [];
+  for (let i = 1; i <= na; i++) phi.push(...S.Yh[i]);
+  for (let j = 0; j < nb; j++) phi.push(...S.Uh[j]);
+  for (let j = 0; j < nl; j++) phi.push(S.Lh[j]);
+  const yhat = nnEvalua(M, phi).y;
+  const d = y.map((v, i) => v - yhat[i]);
+  // linealizacion instantanea respecto a u(t)
+  const ub = S.Uh[0].slice();
+  const phib = [];
+  for (let i = 0; i < na; i++) phib.push(...S.Yh[i]);
+  phib.push(...ub);
+  for (let j = 0; j < nb - 1; j++) phib.push(...S.Uh[j]);
+  if (nl > 0) { phib.push(Lfut); for (let j = 0; j < nl - 1; j++) phib.push(S.Lh[j]); }
+  const B0 = nnGanancia(M, phib);
+  const yb = nnEvalua(M, phib).y;
+  const c = [0, 1, 2].map(i => yb[i] - (B0[i][0] * ub[0] + B0[i][1] * ub[1] + B0[i][2] * ub[2]));
+  let uref;
+  if (S.variante === 'LI') uref = interpUss(S.uss, ldc);
+  else { uref = ub; for (let i = 0; i < 3; i++) c[i] += d[i]; }
+  // ley de Amin: (B0'B0 + lambda I) u = B0'(w - c) + lambda uref
+  const lam = S.lambda, A = [zeros(3), zeros(3), zeros(3)], b = zeros(3);
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 3; j++) { let s = 0; for (let k = 0; k < 3; k++) s += B0[k][i] * B0[k][j]; A[i][j] = s + (i === j ? lam : 0); }
+    let s = 0; for (let k = 0; k < 3; k++) s += B0[k][i] * (w[k] - c[k]); b[i] = s + lam * uref[i];
+  }
+  const uLey = solve(A, b);
+  const u = uLey.map(v => Math.min(Math.max(v, S.Umin), S.Umax));
+  S.Uh.unshift(u.slice()); S.Uh.pop();
+  S.log.condB0.push(cond2(B0));
+  S.log.sat.push(uLey.some(v => v < S.Umin || v > S.Umax));
+  S.log.d.push(d);
+  return u;
+}
+
+// ------------------------------------------------------------ planta
+function clamp47(x, P) { // PTE47_CLAMP
+  const lim = v => Math.min(Math.max(v, 1), 5);
+  for (const k of [23, 24, 25, 26, 27, 28, 30, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43]) x[k - 1] = lim(x[k - 1]);
+  x[28] = check(x[28], P.kn5, P.km5); x[30] = check(x[30], P.kn5, P.km5);
+  x[43] = check(x[43], P.kn1, P.km1); x[44] = check(x[44], P.kn5, P.kn0); x[45] = check(x[45], P.kn5, P.kn0);
+}
+function rk4(t, x, P, Ts) {
+  const f = (tt, xx) => digpte47(tt, xx, P, false)[0];
+  const k1 = f(t, x);
+  const x2 = x.map((v, i) => v + (Ts / 2) * k1[i]); const k2 = f(t + Ts / 2, x2);
+  const x3 = x.map((v, i) => v + (Ts / 2) * k2[i]); const k3 = f(t + Ts / 2, x3);
+  const x4 = x.map((v, i) => v + Ts * k3[i]); const k4 = f(t + Ts, x4);
+  const xn = x.map((v, i) => v + (Ts / 6) * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]));
+  clamp47(xn, P);
+  return xn;
+}
+
+// ------------------------------------------------------------ corrida (AMIN_RAMPA + LI_LAZO)
+// cfg: {pctIni, pctFin, rapidez (%/min), dur (s), ctrl: 'pi'|'LI'|'LI-I', modelo: 'nn34'|'nn33', lambda}
+function prepara(D, cfg) {
+  const T0 = 10, Ts = 0.1;
+  const ss = D.ss[String(cfg.pctIni)];
+  const ldc0 = 0.05 * cfg.pctIni, ldc1 = 0.05 * cfg.pctFin;
+  const vel = cfg.rapidez / 100 * 5 / 60;                       // V/s
+  const rate = Math.sign(ldc1 - ldc0) * vel, T1 = T0 + Math.abs(ldc1 - ldc0) / vel;
+  const P = Object.assign({}, D.P, { kfcal: null, soloTilt: true, grFreeze: false,
+                                    openLoop: [false, false, false], uFcn: null });
+  const ldcFcn = (t) => (t >= T0 ? ldc0 + rate * (Math.min(t, T1) - T0) : ldc0);
+  P.ldcFcn = ldcFcn;
+  const R = { cfg, P, Ts, t: 0, x: ss.x0.slice(), i: 1, n: Math.round(cfg.dur / Ts), T0, T1, Tc: 20,
+              tc: [], Y: [], W: [], U: [], L: [], iae: [0, 0, 0], itae: [0, 0, 0], diverge: false, sat: [] };
+  if (cfg.ctrl === 'pi') R.S = null;
+  else {
+    const T = { ldc: [], U: [] };
+    for (let p = 50; p <= 100; p += 5) { T.ldc.push(0.05 * p); T.U.push(D.ss[String(p)].u); }
+    R.S = liInit(D[cfg.modelo], cfg.ctrl, { lambda: cfg.lambda, ldcFut: ldcFcn }, T);
+  }
+  R.stride = Math.round(R.Tc / Ts);
+  R.uNow = null; R.manda = false;
+  R.pasoFino = Math.round(1 / Ts);
+  R.fino = { t: [], Y: [], W: [], U: [], L: [] };
+  return R;
+}
+function avanza(R) {
+  if (R.i > R.n || R.diverge) return false;
+  do {
+    if ((R.i - 1) % R.stride === 0) instante(R);
+    if ((R.i - 1) % R.pasoFino === 0) registraFino(R);
+    R.x = rk4(R.t, R.x, R.P, R.Ts); R.t += R.Ts; R.i += 1;
+    if (!R.x.every(Number.isFinite)) { R.diverge = true; return false; }
+  } while ((R.i - 1) % R.stride !== 0 && R.i <= R.n);
+  if (R.i > R.n) registraFino(R);
+  return R.i <= R.n;
+}
+function registraFino(R) {
+  const F = R.fino;
+  if (F.t.length && Math.abs(F.t[F.t.length - 1] - R.t) < 1e-9) return;
+  const yl = digpte47(R.t, R.x, R.P, true)[1];
+  const u = (R.manda && R.uNow) ? R.uNow.slice() : yl.slice(28, 31);
+  F.t.push(R.t); F.Y.push(yl.slice(25, 28)); F.W.push(yl.slice(31, 34)); F.U.push(u); F.L.push(yl[34]);
+}
+function instante(R) {
+  const P = R.P;
+  const yl = digpte47(R.t, R.x, P, true)[1];
+  const y = yl.slice(25, 28), w = yl.slice(31, 34), uPI = yl.slice(28, 31), ldc = yl[34];
+  if (R.S) {
+    R.S.tNow = R.t;
+    const u = liLey(R.S, y, w, uPI, ldc);
+    R.uNow = u;
+    if (!R.manda) { R.manda = true; P.openLoop = [true, true, true]; }
+    const uc = u.slice(); P.uFcn = () => uc;
+    R.sat.push(R.S.log.sat[R.S.log.sat.length - 1]);
+  } else R.uNow = uPI;
+  R.tc.push(R.t); R.Y.push(y); R.W.push(w); R.U.push(R.uNow.slice()); R.L.push(ldc);
+  const dt = R.stride * R.Ts;
+  for (let q = 0; q < 3; q++) { const e = Math.abs(y[q] - w[q]); R.iae[q] += e * dt; R.itae[q] += e * R.t * dt; }
+}
+function corre(D, cfg) { const R = prepara(D, cfg); while (avanza(R)) { /* nada */ } return R; }
+
+const SimNN = { prepara, avanza, corre, nnEvalua, nnGanancia, liLey, cond2 };
+if (typeof module !== 'undefined') module.exports = SimNN;
+
+</script>
+<script>
+// app_nn.js — Interfaz del simulador web del control por linealizacion instantanea con NNARX.
+'use strict';
+(function () {
+  const D = window.DATOS;
+  const PRUEBAS = {
+    a1: { pctIni: 90, pctFin: 70, rapidez: 10, dur: 800, nombre: 'Amin 90 → 70 %', arch: 'amin_90a70' },
+    a2: { pctIni: 70, pctFin: 90, rapidez: 10, dur: 800, nombre: 'Amin 70 → 90 %', arch: 'amin_70a90' },
+    u1: { pctIni: 100, pctFin: 77.5, rapidez: 15, dur: 700, nombre: 'Usoro V.1 100 → 77,5 %', arch: 'usoroV1_100a77.5' },
+    u2: { pctIni: 77.5, pctFin: 100, rapidez: 15, dur: 700, nombre: 'Usoro V.2 77,5 → 100 %', arch: 'usoroV2_77.5a100' },
+    u3: { pctIni: 77.5, pctFin: 50, rapidez: 15, dur: 700, nombre: 'Usoro V.3 77,5 → 50 %', arch: 'usoroV3_77.5a50' },
+    u4: { pctIni: 50, pctFin: 77.5, rapidez: 15, dur: 700, nombre: 'Usoro V.4 50 → 77,5 %', arch: 'usoroV4_50a77.5' },
+  };
+  const NOM_CTRL = { LI: 'LI', 'LI-I': 'LI-I', pi: 'PI de Usoro' };
+  const NOM_MOD = { nn34: 'NNARX 3×4', nn33: 'NNARX 3×3' };
+  const $ = id => document.getElementById(id);
+  const coma = (v, d) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  let R = null, Rpi = null, corriendo = false, terminado = false, cfgActual = null;
+  const cachePI = {};
+
+  function cfgDeUI() {
+    const p = PRUEBAS[$('prueba').value];
+    const lam = parseFloat($('lambda').value);
+    return Object.assign({}, p, { clave: $('prueba').value, ctrl: $('ctrl').value, modelo: $('modelo').value,
+                                  lambda: Number.isFinite(lam) && lam >= 0 ? lam : 0.5 });
+  }
+  function piDe(cfg) {
+    if (!cachePI[cfg.clave]) cachePI[cfg.clave] = SimNN.corre(D, Object.assign({}, cfg, { ctrl: 'pi' }));
+    return cachePI[cfg.clave];
+  }
+
+  // ------------------------------------------------------------ graficas
+  const GRAF = [
+    { tit: 'TSSO (°R)', i: 0, tipo: 'y', min: 1420, max: 1500 },
+    { tit: 'TRHO (°R)', i: 1, tipo: 'y', min: 1420, max: 1500 },
+    { tit: 'PSSO (psia)', i: 2, tipo: 'y', min: 2200, max: 2600 },
+    { tit: 'CBMD (V)', i: 0, tipo: 'u', min: 1, max: 5 },
+    { tit: 'CXGG (V)', i: 1, tipo: 'u', min: 1, max: 5 },
+    { tit: 'CWSY (V)', i: 2, tipo: 'u', min: 1, max: 5 },
+  ];
+  function ticks(a, b, n) {
+    const paso0 = (b - a) / n, mag = Math.pow(10, Math.floor(Math.log10(paso0)));
+    const paso = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= paso0);
+    const t = []; for (let v = Math.ceil(a / paso) * paso; v <= b + 1e-9; v += paso) t.push(+v.toFixed(10));
+    return { t, paso };
+  }
+  function dibuja(cv, g, dur, series) {
+    const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+    if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+    const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+    // escala: la de las figuras del articulo, ensanchada si una curva se sale
+    let lo = g.min, hi = g.max;
+    for (const s of series) for (const v of s.v) if (Number.isFinite(v)) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    if (lo < g.min || hi > g.max) { const m = 0.05 * (hi - lo); lo -= m; hi += m; }
+    const ml = 46, mr = 16, mt = 20, mb = 26, pw = W - ml - mr, ph = H - mt - mb;
+    const X = t => ml + pw * t / dur, Y = v => mt + ph * (1 - (v - lo) / (hi - lo));
+    c.font = '11px Segoe UI, Roboto, Arial, sans-serif'; c.fillStyle = '#1d1d22'; c.textAlign = 'center';
+    c.fillText(g.tit, ml + pw / 2, 13);
+    c.strokeStyle = '#e8e8ed'; c.lineWidth = 1; c.fillStyle = '#5f5f68';
+    const ty = ticks(lo, hi, 4);
+    c.textAlign = 'right';
+    for (const v of ty.t) { const y = Y(v); c.beginPath(); c.moveTo(ml, y); c.lineTo(ml + pw, y); c.stroke();
+      c.fillText(coma(v, ty.paso < 1 ? 1 : 0), ml - 4, y + 4); }
+    const tx = ticks(0, dur, 6); c.textAlign = 'center';
+    for (const v of tx.t) { const x = X(v); c.beginPath(); c.moveTo(x, mt); c.lineTo(x, mt + ph); c.stroke(); c.fillText(String(v), x, mt + ph + 14); }
+    c.fillText('tiempo (s)', ml + pw / 2, H - 1);
+    c.strokeStyle = '#b9b9c3'; c.strokeRect(ml, mt, pw, ph);
+    c.save(); c.beginPath(); c.rect(ml, mt, pw, ph); c.clip();
+    for (const s of series) {
+      c.strokeStyle = s.color; c.lineWidth = s.ancho || 1.6; c.setLineDash(s.disc ? [5, 4] : []);
+      c.beginPath(); let ok = false;
+      for (let k = 0; k < s.t.length; k++) {
+        const x = X(s.t[k]), y = Y(s.v[k]);
+        if (!ok) { c.moveTo(x, y); ok = true; }
+        else if (s.escalon) { c.lineTo(x, Y(s.v[k - 1])); c.lineTo(x, y); }
+        else c.lineTo(x, y);
+      }
+      c.stroke();
+    }
+    c.restore(); c.setLineDash([]);
+  }
+  function serie(F, campo, i) { return F.t.length ? F[campo].map(r => r[i]) : []; }
+  function redibuja() {
+    const cfg = cfgActual || cfgDeUI(), dur = cfg.dur;
+    const conPI = $('fondoPI').checked && cfg.ctrl !== 'pi';
+    const piR = conPI ? piDe(cfg) : null;
+    $('legPI').style.display = conPI ? '' : 'none';
+    $('legCtrl').textContent = cfg.ctrl === 'pi' ? 'PI de Usoro' : `${NOM_CTRL[cfg.ctrl]} con ${NOM_MOD[cfg.modelo]}`;
+    GRAF.forEach((g, k) => {
+      const series = [];
+      const campo = g.tipo === 'y' ? 'Y' : 'U';
+      if (piR) series.push({ t: piR.fino.t, v: serie(piR.fino, campo, g.i), color: css('--pi'), ancho: 1.4 });
+      if (R) {
+        const col = cfg.ctrl === 'pi' ? css('--pi') : css('--ctrl');
+        if (g.tipo === 'y') {
+          series.push({ t: R.fino.t, v: serie(R.fino, 'W', g.i), color: css('--cons'), disc: true, ancho: 1.2 });
+          series.push({ t: R.fino.t, v: serie(R.fino, 'Y', g.i), color: col });
+        } else {
+          series.push({ t: R.fino.t, v: serie(R.fino, 'U', g.i), color: col, escalon: cfg.ctrl !== 'pi' });
+        }
+      }
+      dibuja($('g' + k), g, dur, series);
+    });
+  }
+
+  // ------------------------------------------------------------ lectura y estado
+  function lectura() {
+    const tb = $('lect'); tb.innerHTML = '';
+    if (!R || !R.tc.length) { $('eJ').textContent = '—'; return; }
+    const cfg = cfgActual, piR = cfg.ctrl !== 'pi' && terminado ? piDe(cfg) : null;
+    const nom = ['TSSO (°R)', 'TRHO (°R)', 'PSSO (psia)'];
+    let suma = 0;
+    for (let i = 0; i < 3; i++) {
+      const emax = Math.max(...R.Y.map((y, k) => Math.abs(y[i] - R.W[k][i])));
+      let qI = NaN, qT = NaN;
+      if (piR) { qI = R.iae[i] / piR.iae[i]; qT = R.itae[i] / piR.itae[i]; suma += qI; }
+      const cl = q => (Number.isFinite(q) ? (q < 1 ? 'bien' : 'mal') : '');
+      tb.insertAdjacentHTML('beforeend', `<tr><td>${nom[i]}</td><td>${coma(emax, 2)}</td><td>${coma(R.iae[i], 0)}</td>` +
+        `<td>${coma(R.itae[i] / 1000, 0)}·10³</td><td class="${cl(qI)}">${coma(qI, 2)}</td><td class="${cl(qT)}">${coma(qT, 2)}</td></tr>`);
+    }
+    $('eJ').textContent = piR ? coma(suma / 3, 2) : (cfg.ctrl === 'pi' ? '1 (es el PI)' : 'al terminar');
+  }
+  function estado() {
+    if (!R) return;
+    $('eT').textContent = `${Math.round(R.t)} s`;
+    const L = R.L.length ? R.L[R.L.length - 1] / 0.05 : NaN;
+    $('eL').textContent = Number.isFinite(L) ? `${coma(L, 1)} %` : '—';
+    if (R.S) {
+      const s = R.S.log.sat, cb = R.S.log.condB0;
+      $('eSat').textContent = s.length ? `${coma(100 * s.filter(Boolean).length / s.length, 1)} % del tiempo` : '—';
+      $('eCond').textContent = cb.length ? coma(cb[cb.length - 1], 0) : '—';
+    } else { $('eSat').textContent = '—'; $('eCond').textContent = '—'; }
+    $('avance').style.width = `${Math.min(100, 100 * R.t / cfgActual.dur)}%`;
+  }
+  function fase(txt, cls) { const f = $('fase'); f.textContent = txt; f.className = 'fase ' + cls; }
+
+  // ------------------------------------------------------------ marcha
+  function nueva() {
+    cfgActual = cfgDeUI(); R = SimNN.prepara(D, cfgActual); terminado = false;
+    $('bCSV').disabled = true; $('bPNG').disabled = true;
+  }
+  function bucle() {
+    if (!corriendo) return;
+    const v = $('vel').value, t0 = performance.now();
+    if (v === 'max') { while (performance.now() - t0 < 40) { if (!SimNN.avanza(R)) { termina(); break; } } }
+    else {
+      const meta = R.t + (+v) * 0.05;      // ~50 ms por cuadro
+      while (R.t < meta) { if (!SimNN.avanza(R)) { termina(); break; } }
+    }
+    estado(); redibuja(); lectura();
+    if (corriendo) requestAnimationFrame(bucle);
+  }
+  function termina() {
+    corriendo = false; terminado = true;
+    fase(R.diverge ? 'La simulación divergió' : 'Terminado', R.diverge ? 'divergio' : 'terminado');
+    $('bInicia').textContent = 'Iniciar'; $('bCSV').disabled = false; $('bPNG').disabled = false;
+    estado(); redibuja(); lectura();
+  }
+  $('bInicia').onclick = () => {
+    if (corriendo) { corriendo = false; fase('En pausa', 'pausa'); $('bInicia').textContent = 'Continuar';
+      $('bCSV').disabled = false; $('bPNG').disabled = false; return; }
+    if (!R || terminado) nueva();
+    corriendo = true; fase('Corriendo', 'corriendo'); $('bInicia').textContent = 'Pausar';
+    $('bCSV').disabled = true; $('bPNG').disabled = true;
+    requestAnimationFrame(bucle);
+  };
+  $('bReinicia').onclick = () => {
+    corriendo = false; R = null; terminado = false; cfgActual = null;
+    fase('Listo', 'listo'); $('bInicia').textContent = 'Iniciar'; $('avance').style.width = '0';
+    ['eT', 'eL', 'eSat', 'eCond', 'eJ'].forEach(id => { $(id).textContent = '—'; });
+    $('bCSV').disabled = true; $('bPNG').disabled = true;
+    redibuja(); lectura();
+  };
+  for (const id of ['prueba', 'ctrl', 'modelo', 'lambda']) $(id).addEventListener('change', () => { $('bReinicia').onclick(); });
+  $('fondoPI').addEventListener('change', redibuja);
+  $('ctrl').addEventListener('change', () => { const p = $('ctrl').value === 'pi'; $('modelo').disabled = p; $('lambda').disabled = p; });
+
+  // ------------------------------------------------------------ exportar
+  function nombreArch(ext) {
+    const c = cfgActual; const ctrl = c.ctrl === 'pi' ? 'PI' : `${c.ctrl}_${c.modelo === 'nn34' ? 'NNARX3x4' : 'NNARX3x3'}_lambda${c.lambda}`;
+    return `${c.arch}_${ctrl}_${Math.round(R.t)}s.${ext}`;
+  }
+  function descarga(blob, nombre) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nombre; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
+  $('bCSV').onclick = () => {
+    const c = cfgActual, F = R.fino;
+    const L = [`# Simulador web: control por linealizacion instantanea con NNARX (sin RLS)`,
+      `# Prueba: ${c.nombre.replace(/→/g, '->')}; rampa a ${c.rapidez} %/min desde t = 10 s`,
+      `# Controlador: ${c.ctrl === 'pi' ? 'PI de Usoro' : c.ctrl + ' con ' + (c.modelo === 'nn34' ? 'NNARX 3x4' : 'NNARX 3x3') + ', lambda = ' + c.lambda}`,
+      `# IAE (R s, R s, psia s): ${R.iae.map(v => v.toFixed(3)).join(', ')}`,
+      `# ITAE (R s^2, R s^2, psia s^2): ${R.itae.map(v => v.toFixed(1)).join(', ')}`,
+      't_s,ldc_V,carga_pct,TSSO_R,TSSO_ref_R,TRHO_R,TRHO_ref_R,PSSO_psia,PSSO_ref_psia,CBMD_V,CXGG_V,CWSY_V'];
+    for (let k = 0; k < F.t.length; k++) {
+      L.push([F.t[k].toFixed(1), F.L[k].toFixed(6), (F.L[k] / 0.05).toFixed(4), F.Y[k][0], F.W[k][0], F.Y[k][1], F.W[k][1],
+        F.Y[k][2], F.W[k][2], F.U[k][0], F.U[k][1], F.U[k][2]].map(v => (typeof v === 'number' ? +v.toFixed(6) : v)).join(','));
+    }
+    descarga(new Blob(['﻿' + L.join('\n')], { type: 'text/csv' }), nombreArch('csv'));
+  };
+  $('bPNG').onclick = () => {
+    const cvs = [0, 1, 2, 3, 4, 5].map(k => $('g' + k)), w = cvs[0].width, h = cvs[0].height, cab = 60 * (window.devicePixelRatio || 1);
+    const o = document.createElement('canvas'); o.width = 3 * w; o.height = 2 * h + cab;
+    const c = o.getContext('2d'); c.fillStyle = '#fff'; c.fillRect(0, 0, o.width, o.height);
+    c.fillStyle = '#1d1d22'; c.font = `${Math.round(cab / 3.2)}px Segoe UI, Arial, sans-serif`;
+    const k = cfgActual;
+    c.fillText(`${k.nombre} — ${$('legCtrl').textContent}${k.ctrl !== 'pi' ? ', λ = ' + coma(k.lambda, 2) : ''}`, 12, cab / 2.6);
+    c.font = `${Math.round(cab / 4.2)}px Segoe UI, Arial, sans-serif`; c.fillStyle = '#5f5f68';
+    c.fillText('Gris: PI de Usoro.  Naranja: controlador.  Discontinua: consigna.', 12, cab / 1.25);
+    cvs.forEach((cv, i) => c.drawImage(cv, (i % 3) * w, cab + Math.floor(i / 3) * h));
+    o.toBlob(b => descarga(b, nombreArch('png')));
+  };
+
+  // ------------------------------------------------------------ pestanas
+  document.querySelectorAll('.pest').forEach(b => b.onclick = () => {
+    document.querySelectorAll('.pest').forEach(x => x.classList.toggle('activa', x === b));
+    document.querySelectorAll('.pagina').forEach(p => p.classList.toggle('activa', p.id === b.dataset.p));
+    redibuja();
+  });
+  window.addEventListener('resize', redibuja);
+  redibuja();
+})();
+
+</script>
+
+</body>
+</html>
