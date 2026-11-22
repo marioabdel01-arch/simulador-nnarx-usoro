@@ -15,7 +15,7 @@ Simulador en línea del control por **linealización instantánea** (Nørgaard e
   - LI-I: con acción integral;
   - LI-RLS: autosintonizable; la misma ley, con el RLS de Amin actualizando en línea la capa de salida de la red;
   - el PI original de Usoro.
-- **Lectura:** las salidas y los mandos con el PI de fondo (y, en las rampas de Amin, el STC modificado), y los índices IAE e ITAE frente a ellos.
+- **Lectura:** las salidas y los mandos con el PI de fondo (y, si se activan, el STC y el STC modificado de Amin), y los índices IAE e ITAE frente a ellos.
 - **Planta:** el esquema de la unidad con los valores en vivo y siete paneles por área con las 24 variables que registra Usoro (1977).
 - **Exportación:** informe PDF de una página, datos en CSV y gráficas en PNG.
 
@@ -27,7 +27,7 @@ Cada 20 s se deriva la red respecto al mando en el punto de operación actual. C
 
 En las pruebas de Usoro (V.1–V.4) todos los controladores, también el PI, corren la planta original de Usoro sin cambios: con la atemperación del recalentador y sus condiciones iniciales tabuladas. El PI coincide con el de los otros simuladores. En las rampas de Amin se usa su hipótesis: el recalentado solo con la inclinación de quemadores y arranque en el estado estable de cada nivel.
 
-En las rampas de Amin se puede dibujar de fondo, además del PI, el STC modificado de la réplica de Amin et al. (1984), con sus cocientes IAE e ITAE contra el controlador neuronal.
+En las seis pruebas se pueden dibujar de fondo, además del PI, el STC y el STC modificado de la réplica de Amin et al. (1984), con sus cocientes IAE e ITAE contra el controlador neuronal. En las pruebas de Usoro corren la planta original; el modificado usa una tabla por carga de 50 a 100 % hecha con esa planta por el procedimiento de Amin. Ahí ninguno de los dos mejora al PI (media de IAE/PI de 4,42 y 4,70).
 
 Las redes 3×4 y 3×3 se entrenaron con la planta de la hipótesis de Amin; en las pruebas de Usoro su desempeño se degrada. Para esas pruebas está la red identificada con la planta original, que baja J de 3,91 a 1,22 (LI) y de 4,02 a 1,10 (LI-RLS).
 
