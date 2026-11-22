@@ -21,7 +21,9 @@ Cada 20 s se deriva la red respecto al mando en el punto de operación actual. C
 
 ## Planta
 
-Todas las corridas, también las del PI, usan la planta con la hipótesis de Amin et al. (1984): el recalentado se controla solo con la inclinación de quemadores, sin atemperación. Arrancan en el estado estable de cada nivel. Por eso, en V.1–V.4 el PI no coincide con el del simulador de la reproducción, que corre la planta completa de Usoro con sus condiciones iniciales tabuladas.
+En las pruebas de Usoro (V.1–V.4) todos los controladores, también el PI, corren la planta original de Usoro sin cambios: con la atemperación del recalentador y sus condiciones iniciales tabuladas. El PI coincide con el de los otros simuladores. En las rampas de Amin se usa su hipótesis: el recalentado solo con la inclinación de quemadores y arranque en el estado estable de cada nivel.
+
+Las redes se entrenaron con la planta de la hipótesis de Amin. En las pruebas de Usoro controlan una planta que no vieron al entrenarse, y ahí su desempeño se degrada.
 
 ## Verificación
 
