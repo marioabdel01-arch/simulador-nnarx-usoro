@@ -23,6 +23,8 @@ Cada 20 s se deriva la red respecto al mando en el punto de operación actual. C
 
 En las pruebas de Usoro (V.1–V.4) todos los controladores, también el PI, corren la planta original de Usoro sin cambios: con la atemperación del recalentador y sus condiciones iniciales tabuladas. El PI coincide con el de los otros simuladores. En las rampas de Amin se usa su hipótesis: el recalentado solo con la inclinación de quemadores y arranque en el estado estable de cada nivel.
 
+En las rampas de Amin se puede dibujar de fondo, además del PI, el STC modificado de la réplica de Amin et al. (1984), con sus cocientes IAE e ITAE contra el controlador neuronal.
+
 Las redes se entrenaron con la planta de la hipótesis de Amin. En las pruebas de Usoro controlan una planta que no vieron al entrenarse, y ahí su desempeño se degrada.
 
 ## Verificación
