@@ -9,7 +9,7 @@ Simulador en línea del control por **linealización instantánea** (Nørgaard e
 ## Qué permite
 
 - **Pruebas:** las dos rampas de Amin et al. (1984), 90 → 70 % y 70 → 90 % a 10 %/min, y las cuatro cargas de Usoro (1977): V.1 100 → 77,5 %, V.2 77,5 → 50 %, V.3 50 → 77,5 % y V.4 77,5 → 100 %, a 15 %/min.
-- **Modelos:** NNARX 3×4, que recibe la demanda de carga, y NNARX 3×3, que no la recibe.
+- **Modelos:** NNARX 3×4, que recibe la demanda de carga; el mismo 3×4 identificado con la planta original (con el rociado del recalentador); y NNARX 3×3, que no recibe la demanda.
 - **Controladores:**
   - LI: la ley de mínima varianza ponderada de Amin sobre la red linealizada en cada periodo;
   - LI-I: con acción integral;
@@ -29,11 +29,11 @@ En las pruebas de Usoro (V.1–V.4) todos los controladores, también el PI, cor
 
 En las rampas de Amin se puede dibujar de fondo, además del PI, el STC modificado de la réplica de Amin et al. (1984), con sus cocientes IAE e ITAE contra el controlador neuronal.
 
-Las redes se entrenaron con la planta de la hipótesis de Amin. En las pruebas de Usoro controlan una planta que no vieron al entrenarse, y ahí su desempeño se degrada.
+Las redes 3×4 y 3×3 se entrenaron con la planta de la hipótesis de Amin; en las pruebas de Usoro su desempeño se degrada. Para esas pruebas está la red identificada con la planta original, que baja J de 3,91 a 1,22 (LI) y de 4,02 a 1,10 (LI-RLS).
 
 ## Verificación
 
-Es una traducción a JavaScript del código de MATLAB (`stc-neuronal`). Se compararon 32 corridas: las 6 pruebas con el PI, LI y LI-I con el 3×4, las 2 rampas de Amin con el 3×3 y las 8 de LI-RLS. En todas, los IAE coinciden con los de MATLAB/Octave con una diferencia relativa menor a 10⁻⁷.
+Es una traducción a JavaScript del código de MATLAB (`stc-neuronal`). Se compararon 44 corridas: las 6 pruebas con el PI, LI y LI-I con el 3×4, las 2 rampas de Amin con el 3×3, las 8 de LI-RLS y las 12 con la red identificada con la planta original. En todas, los IAE coinciden con los de MATLAB/Octave con una diferencia relativa menor a 10⁻⁷.
 
 La planta es la del [simulador de la reproducción de Amin et al. (1984)](https://marioabdel01-arch.github.io/simulador-amin-usoro/).
 
