@@ -96,11 +96,11 @@ table.lect td.bien { background: var(--bien); } table.lect td.mal { background: 
             <option value="a1">90 → 70 %</option>
             <option value="a2">70 → 90 %</option>
           </optgroup>
-          <optgroup label="Usoro (1977), 15 %/min, 700 s">
+          <optgroup label="Cargas de Usoro (1977), 15 %/min, 700 s">
             <option value="u1">V.1  100 → 77,5 %</option>
-            <option value="u2">V.2  77,5 → 100 %</option>
-            <option value="u3">V.3  77,5 → 50 %</option>
-            <option value="u4">V.4  50 → 77,5 %</option>
+            <option value="u2">V.2  77,5 → 50 %</option>
+            <option value="u3">V.3  50 → 77,5 %</option>
+            <option value="u4">V.4  77,5 → 100 %</option>
           </optgroup>
         </select>
       </label>
@@ -121,6 +121,7 @@ table.lect td.bien { background: var(--bien); } table.lect td.mal { background: 
         <input type="number" id="lambda" value="0.5" min="0" step="0.1">
       </label>
       <label class="chk"><input type="checkbox" id="fondoPI" checked> PI de Usoro de fondo</label>
+      <p class="nota">Planta con la hipótesis de Amin: el recalentado se controla solo con la inclinación de quemadores (sin su atemperación). Ver «Acerca de».</p>
     </section>
 
     <section class="caja">
@@ -200,9 +201,16 @@ table.lect td.bien { background: var(--bien); } table.lect td.mal { background: 
       </ul>
       <p>Ninguno de los dos aceptó por completo la hipótesis de validación de la metodología: el 3×4 falló solo la prueba de blancura de
         los residuos (un sesgo pequeño que depende del nivel de carga); el 3×3, además, el error y la ganancia.</p>
+      <h3>La planta</h3>
+      <p>Todas las corridas, también las del PI, usan la planta con la hipótesis de Amin et al. (1984): el recalentado se controla solo con la
+        inclinación de quemadores y la válvula de atemperación del recalentador queda desactivada. Arrancan en el estado estable de cada nivel
+        calculado con los PI. En las pruebas V.1–V.4 se usan las cargas y la rapidez de Usoro, pero no su planta completa ni sus condiciones
+        iniciales tabuladas; por eso el PI no coincide con el del <a href="https://marioabdel01-arch.github.io/simulador-amin-usoro/">simulador
+        de la reproducción</a>, que en esas pruebas corre la planta original de Usoro. Con la planta completa y esas condiciones iniciales,
+        este programa da los mismos resultados que aquel.</p>
       <h3>Resultados de referencia (J = media de IAE/PI)</h3>
       <table>
-        <tr><th>Controlador</th><th>Rampas de Amin</th><th>Rampas de Usoro</th></tr>
+        <tr><th>Controlador</th><th>Rampas de Amin</th><th>Cargas de Usoro</th></tr>
         <tr><td>STC de Amin (réplica)</td><td>3,96</td><td>—</td></tr>
         <tr><td>STC modificado (réplica)</td><td>1,43</td><td>—</td></tr>
         <tr><td>LI, NNARX 3×3</td><td>7,07</td><td>—</td></tr>
@@ -1492,9 +1500,9 @@ if (typeof module !== 'undefined') module.exports = SimNN;
     a1: { pctIni: 90, pctFin: 70, rapidez: 10, dur: 800, nombre: 'Amin 90 → 70 %', arch: 'amin_90a70' },
     a2: { pctIni: 70, pctFin: 90, rapidez: 10, dur: 800, nombre: 'Amin 70 → 90 %', arch: 'amin_70a90' },
     u1: { pctIni: 100, pctFin: 77.5, rapidez: 15, dur: 700, nombre: 'Usoro V.1 100 → 77,5 %', arch: 'usoroV1_100a77.5' },
-    u2: { pctIni: 77.5, pctFin: 100, rapidez: 15, dur: 700, nombre: 'Usoro V.2 77,5 → 100 %', arch: 'usoroV2_77.5a100' },
-    u3: { pctIni: 77.5, pctFin: 50, rapidez: 15, dur: 700, nombre: 'Usoro V.3 77,5 → 50 %', arch: 'usoroV3_77.5a50' },
-    u4: { pctIni: 50, pctFin: 77.5, rapidez: 15, dur: 700, nombre: 'Usoro V.4 50 → 77,5 %', arch: 'usoroV4_50a77.5' },
+    u2: { pctIni: 77.5, pctFin: 50, rapidez: 15, dur: 700, nombre: 'Usoro V.2 77,5 → 50 %', arch: 'usoroV2_77.5a50' },
+    u3: { pctIni: 50, pctFin: 77.5, rapidez: 15, dur: 700, nombre: 'Usoro V.3 50 → 77,5 %', arch: 'usoroV3_50a77.5' },
+    u4: { pctIni: 77.5, pctFin: 100, rapidez: 15, dur: 700, nombre: 'Usoro V.4 77,5 → 100 %', arch: 'usoroV4_77.5a100' },
   };
   const NOM_CTRL = { LI: 'LI', 'LI-I': 'LI-I', pi: 'PI de Usoro' };
   const NOM_MOD = { nn34: 'NNARX 3×4', nn33: 'NNARX 3×3' };
