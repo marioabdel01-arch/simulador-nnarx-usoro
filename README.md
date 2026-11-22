@@ -1,10 +1,10 @@
 # Simulador web: control por linealización instantánea con NNARX
 
-Simulador en línea del control por **linealización instantánea** (Nørgaard et al., 2000) con un modelo neuronal **NNARX**, sin RLS, sobre el modelo de 47 estados de la planta termoeléctrica de 600 MW de Usoro (1977).
+Simulador en línea del control por **linealización instantánea** (Nørgaard et al., 2000) con un modelo neuronal **NNARX** (con la red fija, o autosintonizable con RLS sobre la capa de salida) sobre el modelo de 47 estados de la planta termoeléctrica de 600 MW de Usoro (1977).
 
 **Abrir el simulador:** https://marioabdel01-arch.github.io/simulador-nnarx-usoro/
 
-**Guía en video** (unos 7 minutos y medio, narrada, con subtítulos): botón «▶ Guía en video» de la página, o https://marioabdel01-arch.github.io/simulador-nnarx-usoro/#video
+**Guía en video** (unos 8 minutos, narrada, con subtítulos): botón «▶ Guía en video» de la página, o https://marioabdel01-arch.github.io/simulador-nnarx-usoro/#video
 
 ## Qué permite
 
@@ -13,6 +13,7 @@ Simulador en línea del control por **linealización instantánea** (Nørgaard e
 - **Controladores:**
   - LI: la ley de mínima varianza ponderada de Amin sobre la red linealizada en cada periodo;
   - LI-I: con acción integral;
+  - LI-RLS: autosintonizable; la misma ley, con el RLS de Amin actualizando en línea la capa de salida de la red;
   - el PI original de Usoro.
 - **Lectura:** las salidas y los mandos con el PI de fondo (y, en las rampas de Amin, el STC modificado), y los índices IAE e ITAE frente a ellos.
 - **Planta:** el esquema de la unidad con los valores en vivo y siete paneles por área con las 24 variables que registra Usoro (1977).
@@ -20,7 +21,7 @@ Simulador en línea del control por **linealización instantánea** (Nørgaard e
 
 ## Cómo funciona
 
-Cada 20 s se deriva la red respecto al mando en el punto de operación actual. Con ese modelo lineal local se calcula el mando que minimiza ‖ŷ(t+1) − w‖² + λ‖u − u_ref‖². La red queda fija: no hay estimación en línea.
+Cada 20 s se deriva la red respecto al mando en el punto de operación actual. Con ese modelo lineal local se calcula el mando que minimiza ‖ŷ(t+1) − w‖² + λ‖u − u_ref‖². En LI y LI-I la red queda fija. En LI-RLS, antes de linealizar, el RLS de Amin actualiza la capa de salida de la red con cada medición.
 
 ## Planta
 
@@ -32,7 +33,7 @@ Las redes se entrenaron con la planta de la hipótesis de Amin. En las pruebas d
 
 ## Verificación
 
-Es una traducción a JavaScript del código de MATLAB (`stc-neuronal`). Se compararon 24 corridas: las 6 pruebas con el PI, LI y LI-I con el 3×4, más las 2 rampas de Amin con el 3×3. En todas, los IAE coinciden con los de MATLAB/Octave con una diferencia relativa menor a 10⁻⁷.
+Es una traducción a JavaScript del código de MATLAB (`stc-neuronal`). Se compararon 32 corridas: las 6 pruebas con el PI, LI y LI-I con el 3×4, las 2 rampas de Amin con el 3×3 y las 8 de LI-RLS. En todas, los IAE coinciden con los de MATLAB/Octave con una diferencia relativa menor a 10⁻⁷.
 
 La planta es la del [simulador de la reproducción de Amin et al. (1984)](https://marioabdel01-arch.github.io/simulador-amin-usoro/).
 
